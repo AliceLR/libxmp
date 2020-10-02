@@ -50,10 +50,6 @@ typedef unsigned long long uint64;
 typedef signed long long int64;
 #endif
 
-#ifndef LIBXMP_CORE_PLAYER
-#define LIBXMP_PAULA_SIMULATOR
-#endif
-
 /* Constants */
 #define PAL_RATE	250.0		/* 1 / (50Hz * 80us)		  */
 #define NTSC_RATE	208.0		/* 1 / (60Hz * 80us)		  */
