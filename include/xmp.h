@@ -1,6 +1,22 @@
 #ifndef XMP_H
 #define XMP_H
 
+/* Suppress unwanted debug messages */
+#ifdef DEBUG
+#undef DEBUG
+#define MEGAZEUX_DEBUG
+#endif
+
+/* Force libxmp to build static */
+#ifndef BUILDING_STATIC
+#define BUILDING_STATIC
+#endif
+
+/* Force libxmp to not use versioned symbols on Linux */
+#ifdef XMP_SYM_VISIBILITY
+#undef XMP_SYM_VISIBILITY
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
