@@ -35,7 +35,7 @@
 
 #include "loader.h"
 #include "xm.h"
-#ifndef LIBXMP_CORE_PLAYER
+#if 0
 #include "vorbis.h"
 #endif
 
@@ -384,7 +384,7 @@ err:
  * for more details. */
 #define XM_MAX_SAMPLES_PER_INST 32
 
-#ifndef LIBXMP_CORE_PLAYER
+#if 0
 #define MAGIC_OGGS	0x4f676753
 
 static int is_ogg_sample(HIO_HANDLE *f, struct xmp_sample *xxs)
@@ -736,7 +736,7 @@ static int load_instruments(struct module_data *m, int version, HIO_HANDLE *f)
 			if (version > 0x0103) {
 			        D_(D_INFO "  read sample: index:%d sample id:%d", j, sub->sid);
 
-#ifndef LIBXMP_CORE_PLAYER
+#if 0
 				if (is_ogg_sample(f, xxs)) {
 					if (oggdec(m, f, xxs, xsh[j].length) < 0) {
 						return -1;
