@@ -1,6 +1,26 @@
 #ifndef XMP_H
 #define XMP_H
 
+/**** Start MZX-specific hacks. *****/
+
+/* Suppress unwanted debug messages */
+#ifdef DEBUG
+#undef DEBUG
+#define MEGAZEUX_DEBUG
+#endif
+
+/* Force libxmp to build static */
+#ifndef LIBXMP_STATIC
+#define LIBXMP_STATIC
+#endif
+
+/* Force libxmp to not use versioned symbols on Linux */
+#ifdef XMP_SYM_VISIBILITY
+#undef XMP_SYM_VISIBILITY
+#endif
+
+/***** End MZX-specific hacks. *****/
+
 #if defined(EMSCRIPTEN)
 # include <emscripten.h>
 #endif
