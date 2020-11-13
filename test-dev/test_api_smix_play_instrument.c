@@ -56,6 +56,12 @@ TEST(test_api_smix_play_instrument)
 	fail_unless(vi->vol / 16 == 40, "set volume");
 	fail_unless(vi->pos0 ==  0, "sample position");
 
+	ret = xmp_smix_play_instrument(opaque, 3, XMP_KEY_OFF, 0, 0);
+	fail_unless(ret == 0, "play instrument");
+	xmp_play_frame(opaque);
+
+	fail_unless(vi->flags & VOICE_RELEASE, "voice release");
+
 	xmp_release_module(opaque);
 	xmp_end_smix(opaque);
 	xmp_free_context(opaque);
