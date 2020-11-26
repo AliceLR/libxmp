@@ -1080,7 +1080,9 @@ static int read_event_it(struct context_data *ctx, struct xmp_event *e, int chn)
 		if (set_new_ins) {
 			SET(NEW_INS);
 			use_ins_vol = 1;
-			reset_env = 1;
+			if (!is_toneporta && !disabled_toneporta) {
+				reset_env = 1;
+			}
 		}
 		xc->per_flags = 0;
 
@@ -1163,10 +1165,13 @@ static int read_event_it(struct context_data *ctx, struct xmp_event *e, int chn)
 		} else {
 			/* portamento_after_keyoff.it test case */
 			/* also see suburban_streets o13 c45 */
-			if (ev.ins || !is_toneporta) {
+/*			if (ev.ins || !is_toneporta) {
 				if (!disabled_toneporta) {
 					reset_env = 1;
 				}
+			}*/
+			if (ev.ins && !is_toneporta && !disabled_toneporta) {
+				reset_env = 1;
 			}
 
 			if (is_toneporta) {
