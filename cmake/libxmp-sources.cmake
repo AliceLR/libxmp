@@ -86,6 +86,7 @@ set(LIBXMP_SRC_LIST
     src/loaders/chip_load.c
     src/loaders/abk_load.c
     src/loaders/coco_load.c
+    src/loaders/dtt_load.c
 )
 
 set(LIBXMP_SRC_LIST_PROWIZARD 

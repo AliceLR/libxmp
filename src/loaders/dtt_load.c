@@ -23,7 +23,7 @@
 #include "loader.h"
 
 #define MAGIC_DskT	MAGIC4('D','s','k','T')
-#define MAGIC_DskS	MAGIC4('D','s','k','S')
+#define MAGIC_EskT	MAGIC4('E','s','k','T')
 
 
 static int dtt_test(HIO_HANDLE *, char *, const int);
@@ -37,12 +37,46 @@ const struct format_loader libxmp_loader_dtt = {
 
 static int dtt_test(HIO_HANDLE *f, char *t, const int start)
 {
-	if (hio_read32b(f) != MAGIC_DskT)
+	uint32 magic = hio_read32b(f);
+	if (magic != MAGIC_DskT && magic != MAGIC_EskT)
 		return -1;
 
 	libxmp_read_title(f, t, 64);
 
 	return 0;
+}
+
+
+/* Maximum 16 channels and 256 rows per pattern, maximum 8 bytes per event. */
+#define PATTERN_BUF_MAX (16 * 256 * 8)
+
+static int dtt_unpack(uint8 *dest, size_t dest_buf_size,
+		      uint8 *src, size_t src_buf_size, HIO_HANDLE *f)
+{
+	uint32 dest_len = hio_read32l(f);
+	uint32 src_len = hio_read32l(f);
+
+	if (dest_len > dest_buf_size || src_len > src_buf_size)
+		return -1;
+
+	if (hio_read(src, 1, src_len, f) < src_len)
+		return -1;
+
+	return -1;
+}
+
+static uint32 dtt_packed_offset(uint32 size)
+{
+	if (size & 0x80000000UL) {
+		return ~size + 1;
+	}
+	return 0;
+}
+
+static void dtt_translate_effect(uint8 *fxt, uint8 *fxp)
+{
+	// FIXME
+	*fxt = *fxp = 0;
 }
 
 static int dtt_load(struct module_data *m, HIO_HANDLE *f, const int start)
@@ -51,23 +85,31 @@ static int dtt_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	struct xmp_event *event;
 	int i, j, k;
 	int n;
+	uint8 *cbuf = NULL;
+	uint8 *ubuf = NULL;
+	uint32 ubuf_size;
+	int u_size;
 	uint8 buf[100];
 	uint32 flags;
 	uint32 pofs[256];
 	uint8 plen[256];
-	int sdata[64];
+	uint32 sdata[64];
+	uint32 magic;
+	int has_compressed;
 
 	LOAD_INIT();
 
-	hio_read32b(f);
+	magic = hio_read32b(f);
+	ubuf_size = PATTERN_BUF_MAX;
+	has_compressed = (magic == MAGIC_EskT);
 
 	libxmp_set_type(m, "Desktop Tracker");
 
 	hio_read(buf, 1, 64, f);
-	strncpy(mod->name, (char *)buf, XMP_NAME_SIZE);
+	libxmp_copy_adjust(mod->name, buf, XMP_NAME_SIZE - 1);
 	hio_read(buf, 1, 64, f);
 	/* strncpy(m->author, (char *)buf, XMP_NAME_SIZE); */
-	
+
 	flags = hio_read32l(f);
 	mod->chn = hio_read32l(f);
 	mod->len = hio_read32l(f);
@@ -77,7 +119,14 @@ static int dtt_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	mod->pat = hio_read32l(f);
 	mod->ins = mod->smp = hio_read32l(f);
 	mod->trk = mod->pat * mod->chn;
-	
+
+	/* Sanity check */
+	if (mod->chn > 16 || mod->pat > 256 || mod->ins > 63) {
+		D_(D_CRIT "invalid chn=%d, pat=%d, or ins=%d",
+			mod->chn, mod->pat, mod->ins);
+		return -1;
+	}
+
 	hio_read(mod->xxo, 1, (mod->len + 3) & ~3L, f);
 
 	m->c4rate = C4_NTSC_RATE;
@@ -124,6 +173,11 @@ static int dtt_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		libxmp_instrument_name(mod, i, (uint8 *)buf, 32);
 		sdata[i] = hio_read32l(f);
 
+		if (has_compressed && dtt_packed_offset(sdata[i])) {
+			if (mod->xxs[i].len < MAX_SAMPLE_SIZE && mod->xxs[i].len > ubuf_size)
+				ubuf_size = mod->xxs[i].len;
+		}
+
 		mod->xxi[i].nsm = !!(mod->xxs[i].len);
 		mod->xxi[i].sub[0].sid = i;
 
@@ -140,18 +194,51 @@ static int dtt_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	/* Read and convert patterns */
 	D_(D_INFO "Stored patterns: %d", mod->pat);
 
-	for (i = 0; i < mod->pat; i++) {
-		if (libxmp_alloc_pattern_tracks(mod, i, plen[i]) < 0)
-			return -1;
+	if ((ubuf = malloc(ubuf_size)) == NULL)
+		return -1;
 
-		hio_seek(f, start + pofs[i], SEEK_SET);
+	if (has_compressed) {
+		if ((cbuf = malloc(ubuf_size)) == NULL)
+			goto err;
+	}
+
+	for (i = 0; i < mod->pat; i++) {
+		uint32 pos = 0;
+
+		if (libxmp_alloc_pattern_tracks(mod, i, plen[i]) < 0)
+			goto err;
+
+		if (has_compressed && dtt_packed_offset(pofs[i])) {
+			if (hio_seek(f, start + dtt_packed_offset(pofs[i]), SEEK_SET) < 0) {
+				D_(D_CRIT "seek error for pattern %d (cmpr)", i);
+				goto err;
+			}
+
+			u_size = dtt_unpack(ubuf, ubuf_size, cbuf, ubuf_size, f);
+			if (u_size < 0) {
+				D_(D_CRIT "unpack failed for pattern %d", i);
+				goto err;
+			}
+
+		} else {
+			if (hio_seek(f, start + pofs[i], SEEK_SET) < 0) {
+				D_(D_CRIT "seek error for pattern %d", i);
+			}
+			u_size = hio_read(ubuf, 1, plen[i] * mod->chn * 8, f);
+
+		}
+		if (u_size < plen[i] * mod->chn * 4) {
+			D_(D_CRIT "short read for pattern %d", i);
+			goto err;
+		}
 
 		for (j = 0; j < mod->xxp[i]->rows; j++) {
 			for (k = 0; k < mod->chn; k++) {
 				uint32 x;
 
 				event = &EVENT (i, k, j);
-				x = hio_read32l(f);
+				x = readmem32l(ubuf + pos);
+				pos += 4;
 
 				event->ins  = (x & 0x0000003f);
 				event->note = (x & 0x00000fc0) >> 6;
@@ -163,12 +250,17 @@ static int dtt_load(struct module_data *m, HIO_HANDLE *f, const int start)
 				/* sorry, we only have room for two effects */
 				if (x & (0x1f << 17)) {
 					event->f2p = (x & 0x003e0000) >> 17;
-					x = hio_read32l(f);
+
+					x = readmem32l(ubuf + pos);
+					pos += 4;
+
 					event->fxp = (x & 0x000000ff);
 					event->f2p = (x & 0x0000ff00) >> 8;
 				} else {
 					event->fxp = (x & 0xfc000000) >> 18;
 				}
+				dtt_translate_effect(&event->fxt, &event->fxp);
+				dtt_translate_effect(&event->f2t, &event->f2p);
 			}
 		}
 	}
@@ -176,10 +268,39 @@ static int dtt_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	/* Read samples */
 	D_(D_INFO "Stored samples: %d", mod->smp);
 	for (i = 0; i < mod->ins; i++) {
-		hio_seek(f, start + sdata[i], SEEK_SET);
-		if (libxmp_load_sample(m, f, SAMPLE_FLAG_VIDC, &mod->xxs[i], NULL) < 0)
-			return -1;
+		if (has_compressed && dtt_packed_offset(sdata[i])) {
+			if (hio_seek(f, start + dtt_packed_offset(sdata[i]), SEEK_SET) < 0) {
+				D_(D_WARN "seek error for sample %d (cmpr)", i);
+				continue;
+			}
+
+			u_size = dtt_unpack(ubuf, ubuf_size, cbuf, ubuf_size, f);
+			if (u_size < 0) {
+				D_(D_WARN "unpack failed for sample %d", i);
+				continue;
+			}
+
+			if (u_size < mod->xxs[i].len)
+				mod->xxs[i].len = u_size;
+
+			if (libxmp_load_sample(m, NULL, SAMPLE_FLAG_VIDC, &mod->xxs[i], ubuf) < 0)
+				goto err;
+		} else {
+			if (hio_seek(f, start + sdata[i], SEEK_SET) < 0) {
+				D_(D_WARN "seek error for sample %d", i);
+				continue;
+			}
+			if (libxmp_load_sample(m, f, SAMPLE_FLAG_VIDC, &mod->xxs[i], NULL) < 0)
+				goto err;
+		}
 	}
 
+	free(ubuf);
+	free(cbuf);
 	return 0;
+
+err:
+	free(ubuf);
+	free(cbuf);
+	return -1;
 }

@@ -62,7 +62,7 @@ const struct format_loader *const format_loaders[NUM_FORMATS + 2] = {
 	/* &libxmp_loader_tcb, */
 	&libxmp_loader_dt,
 	/* &libxmp_loader_gtk, */
-	/* &libxmp_loader_dtt, */
+	&libxmp_loader_dtt,
 	&libxmp_loader_mgt,
 	&libxmp_loader_arch,
 	&libxmp_loader_sym,
