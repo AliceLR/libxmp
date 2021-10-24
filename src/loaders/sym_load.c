@@ -94,6 +94,10 @@ static void fix_effect(struct xmp_event *e, int parm)
 		break;
 	case 0x09:	/* 09 xxx Set Sample Offset */
 		e->fxp = parm >> 1;
+		if (parm >= 0x200) {
+			e->f2t = FX_HIOFFSET;
+			e->f2p = parm >> 9;
+		}
 		break;
 	case 0x0a:	/* 0A xyz Volume Slide + Fine Slide Up */
 		if (parm & 0xff) {
@@ -199,6 +203,21 @@ static void fix_effect(struct xmp_event *e, int parm)
 			e->f2p = parm >> 8;
 		}
 		break;
+	case 0x2a:	/* 2A xyz Volume Slide + Fine Slide Down */
+		if (parm & 0xff) {
+			e->fxt = FX_VOLSLIDE;
+			e->fxp = parm & 0xff;
+		} else {
+			e->fxt = 0;
+		}
+		e->f2t = FX_EXTENDED;
+		e->f2p = (EX_F_PORTA_DN << 4) | (parm >> 8);
+		break;
+	case 0x2b:	/* 2B xyy Line Jump */
+		/* TODO: is this meant to be decimal like the !Tracker effect? */
+		e->fxt = FX_LINE_JUMP;
+		e->fxp = (e->fxp < 0x40) ? e->fxp : 0;
+		break;
 	case 0x2f:	/* 2F xxx Set Tempo */
 		if (parm >= 0x100 && parm <= 0x800) {
 			e->fxt = FX_SPEED;
@@ -207,9 +226,26 @@ static void fix_effect(struct xmp_event *e, int parm)
 			/* umm... */
 		}
 		break;
-	case 0x2a:	/* 2A xyz Volume Slide + Fine Slide Down */
-	case 0x2b:	/* 2B xyy Line Jump */
 	case 0x30:	/* 30 xxy Set Stereo */
+		e->fxt = FX_SETPAN;
+		if (parm & 7) {
+			/* !Tracker-style panning: 1=left, 4=center, 7=right. */
+			if (!(parm & 8)) {
+				e->fxp = 42 * ((parm & 7) - 1) + 2;
+			} else {
+				e->fxt = 0;
+			}
+		} else {
+			parm >>= 4;
+			if (parm < 128) {
+				e->fxp = parm + 128;
+			} else if (parm > 128) {
+				e->fxp = 255 - parm;
+			} else {
+				e->fxt = 0;
+			}
+		}
+		break;
 	case 0x31:	/* 31 xxx Song Upcall */
 	case 0x32:	/* 32 xxx Unset Sample Repeat */
 	default:
@@ -364,27 +400,37 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
 	/* Read and convert patterns */
 
-	a = hio_read8(f);
-
-	if (a != 0 && a != 1)
-		return -1;
-
-	D_(D_INFO "Packed tracks: %s", a ? "yes" : "no");
 	D_(D_INFO "Stored tracks: %d", mod->trk - 1);
 
 	size = 64 * (mod->trk - 1) * 4;
 	if ((buf = (uint8 *)malloc(size)) == NULL)
 		return -1;
 
-	if (a) {
-		if (libxmp_read_lzw(buf, size, size, LZW_FLAGS_SYM, f) < 0) {
-			free(buf);
+	/* Patterns are stored in blocks of up to 2000 patterns. If there are
+	 * more than 2000 patterns, they need to be read in multiple passes.
+	 *
+	 * See 4096_patterns.dsym.
+	 */
+	for (i = 0; i < size; i += 4 * 64 * 2000) {
+		int blk_size = MIN(size - i, 4 * 64 * 2000);
+
+		a = hio_read8(f);
+
+		if (a != 0 && a != 1)
 			return -1;
-		}
-	} else {
-		if (hio_read(buf, 1, size, f) != size) {
-			free(buf);
-			return -1;
+
+		D_(D_INFO "Packed tracks: %s", a ? "yes" : "no");
+
+		if (a) {
+			if (libxmp_read_lzw(buf + i, blk_size, blk_size, LZW_FLAGS_SYM, f) < 0) {
+				free(buf);
+				return -1;
+			}
+		} else {
+			if (hio_read(buf + i, 1, blk_size, f) != blk_size) {
+				free(buf);
+				return -1;
+			}
 		}
 	}
 

@@ -273,6 +273,7 @@ LOADER		= 6chn mod_adpcm4 mod_noterange mod_noterange2 mod_scrm mod_notawow \
 		  it it_adpcm it_oldins it_schism it_invalid_fx \
 		  669 \
 		  abk \
+		  arch \
 		  asylum \
 		  chiptracker \
 		  coco coco_patalign \
@@ -309,7 +310,7 @@ LOADER		= 6chn mod_adpcm4 mod_noterange mod_noterange2 mod_scrm mod_notawow \
 		  stim \
 		  stm stm_blankpat stm_v1 \
 		  stx \
-		  sym sym_lzwquirk sym_sigmadelta \
+		  sym sym_4096pat sym_lzwquirk sym_sigmadelta \
 		  ult \
 		  ac1d \
 		  crb crb2 \

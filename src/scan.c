@@ -471,6 +471,15 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
 		    last_row = 0;
 		}
 
+#ifndef LIBXMP_CORE_PLAYER
+		if (f1 == FX_LINE_JUMP || f2 == FX_LINE_JUMP) {
+		    ord2 = ord;
+		    parm = (f1 == FX_LINE_JUMP) ? p1 : p2;
+		    break_row = parm;
+		    last_row = 0;
+		}
+#endif
+
 		if (f1 == FX_EXTENDED || f2 == FX_EXTENDED) {
 		    parm = (f1 == FX_EXTENDED) ? p1 : p2;
 

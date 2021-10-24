@@ -1093,6 +1093,15 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 		if (fxp == 0)
 			RESET_PER(TONEPORTA);
 		break;
+
+	/* Archimedes (!Tracker, Digital Symphony, et al.) effects */
+
+	case FX_LINE_JUMP:	/* !Tracker and Digital Symphony "Line Jump" */
+		/* Jump to a line within the current order. */
+		p->flow.pbreak = 1;
+		p->flow.jump = p->ord;
+		p->flow.jumpline = fxp;
+		break;
 #endif
 
 	default:
