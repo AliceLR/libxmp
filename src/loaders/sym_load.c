@@ -284,6 +284,8 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	uint32 a, b;
 	uint8 *buf;
 	int size, ret;
+	int tracks_size;
+	int sequence_size;
 	int max_sample_size = 1;
 	uint8 allowed_effects[8];
 
@@ -348,35 +350,39 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	if (libxmp_init_pattern(mod) < 0)
 		return -1;
 
+	/* Determine the required size of temporary buffer and allocate it now. */
+	/* Uncompressed sequence size */
+	sequence_size = mod->len * mod->chn * 2;
+	if (sequence_size > max_sample_size)
+		max_sample_size = sequence_size;
+
+	tracks_size = 64 * (mod->trk - 1) * 4; /* Uncompressed tracks size */
+	if (tracks_size > max_sample_size)
+		max_sample_size = tracks_size;
+
+	if ((buf = (uint8 *)malloc(max_sample_size)) == NULL)
+		return -1;
+
 	/* Sequence */
 	a = hio_read8(f);		/* packing */
 
 	if (a != 0 && a != 1)
-		return -1;
+		goto err;
 
 	D_(D_INFO "Packed sequence: %s", a ? "yes" : "no");
 
-	size = mod->len * mod->chn * 2;
-	if ((buf = (uint8 *)malloc(size)) == NULL)
-		return -1;
-
 	if (a) {
-		if (libxmp_read_lzw(buf, size, size, LZW_FLAGS_SYM, f) < 0) {
-			free(buf);
-			return -1;
-		}
+		if (libxmp_read_lzw(buf, sequence_size, sequence_size, LZW_FLAGS_SYM, f) < 0)
+			goto err;
 	} else {
-		if (hio_read(buf, 1, size, f) != size) {
-			free(buf);
-			return -1;
-		}
+		if (hio_read(buf, 1, sequence_size, f) != sequence_size)
+			goto err;
 	}
 
 	for (i = 0; i < mod->len; i++) {	/* len == pat */
-		if (libxmp_alloc_pattern(mod, i) < 0) {
-			free(buf);
-			return -1;
-		}
+		if (libxmp_alloc_pattern(mod, i) < 0)
+			goto err;
+
 		mod->xxp[i]->rows = 64;
 
 		for (j = 0; j < mod->chn; j++) {
@@ -388,57 +394,45 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 				t = mod->trk - 1;
 			} else if (t >= mod->trk - 1) {
 				/* Sanity check */
-				free(buf);
-				return -1;
+				goto err;
 			}
 
 			mod->xxp[i]->index[j] = t;
 		}
 		mod->xxo[i] = i;
 	}
-	free(buf);
 
 	/* Read and convert patterns */
 
 	D_(D_INFO "Stored tracks: %d", mod->trk - 1);
-
-	size = 64 * (mod->trk - 1) * 4;
-	if ((buf = (uint8 *)malloc(size)) == NULL)
-		return -1;
 
 	/* Patterns are stored in blocks of up to 2000 patterns. If there are
 	 * more than 2000 patterns, they need to be read in multiple passes.
 	 *
 	 * See 4096_patterns.dsym.
 	 */
-	for (i = 0; i < size; i += 4 * 64 * 2000) {
-		int blk_size = MIN(size - i, 4 * 64 * 2000);
+	for (i = 0; i < tracks_size; i += 4 * 64 * 2000) {
+		int blk_size = MIN(tracks_size - i, 4 * 64 * 2000);
 
 		a = hio_read8(f);
 
 		if (a != 0 && a != 1)
-			return -1;
+			goto err;
 
 		D_(D_INFO "Packed tracks: %s", a ? "yes" : "no");
 
 		if (a) {
-			if (libxmp_read_lzw(buf + i, blk_size, blk_size, LZW_FLAGS_SYM, f) < 0) {
-				free(buf);
-				return -1;
-			}
+			if (libxmp_read_lzw(buf + i, blk_size, blk_size, LZW_FLAGS_SYM, f) < 0)
+				goto err;
 		} else {
-			if (hio_read(buf + i, 1, blk_size, f) != blk_size) {
-				free(buf);
-				return -1;
-			}
+			if (hio_read(buf + i, 1, blk_size, f) != blk_size)
+				goto err;
 		}
 	}
 
 	for (i = 0; i < mod->trk - 1; i++) {
-		if (libxmp_alloc_track(mod, i, 64) < 0) {
-			free(buf);
-			return -1;
-		}
+		if (libxmp_alloc_track(mod, i, 64) < 0)
+			goto err;
 
 		for (j = 0; j < mod->xxt[i]->rows; j++) {
 			int parm;
@@ -461,17 +455,12 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		}
 	}
 
-	free(buf);
-
 	/* Extra track */
 	if (libxmp_alloc_track(mod, i, 64) < 0)
-		return -1;
+		goto err;
 
 	/* Load and convert instruments */
 	D_(D_INFO "Instruments: %d", mod->ins);
-
-	if ((buf = (uint8 *)malloc(max_sample_size)) == NULL)
-		return -1;
 
 	for (i = 0; i < mod->ins; i++) {
 		uint8 namebuf[128];
@@ -518,10 +507,9 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 			D_(D_INFO "%27s LZW", "");
 			size = mod->xxs[i].len;
 
-			if (libxmp_read_lzw(buf, size, size, LZW_FLAGS_SYM, f) < 0) {
-				free(buf);
-				return -1;
-			}
+			if (libxmp_read_lzw(buf, size, size, LZW_FLAGS_SYM, f) < 0)
+				goto err;
+
 			ret = libxmp_load_sample(m, NULL,
 					SAMPLE_FLAG_NOLOAD | SAMPLE_FLAG_DIFF,
 					&mod->xxs[i], buf);
@@ -541,10 +529,9 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		case 4: /* Sigma-delta compressed unsigned 8-bit, linear. */
 			D_(D_INFO "%27s Sigma-delta", "");
 			size = mod->xxs[i].len;
-			if (libxmp_read_sigma_delta(buf, size, size, f) < 0) {
-				free(buf);
-				return -1;
-			}
+			if (libxmp_read_sigma_delta(buf, size, size, f) < 0)
+				goto err;
+
 			ret = libxmp_load_sample(m, NULL,
 					SAMPLE_FLAG_NOLOAD | SAMPLE_FLAG_UNS,
 					&mod->xxs[i], buf);
@@ -553,17 +540,16 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		case 5: /* Sigma-delta compressed signed 8-bit, logarithmic. */
 			D_(D_INFO "%27s Sigma-delta VIDC", "");
 			size = mod->xxs[i].len;
-			if (libxmp_read_sigma_delta(buf, size, size, f) < 0) {
-				free(buf);
-				return -1;
-			} else {
-				/* This uses a bit packing that isn't either mu-law or
-				 * normal Archimedes VIDC. Convert to the latter... */
-				for (j = 0; j < size; j++) {
-					uint8 t = (buf[j] < 128) ? ~buf[j] : buf[j];
-					buf[j] = (buf[j] >> 7) | (t << 1);
-				}
+			if (libxmp_read_sigma_delta(buf, size, size, f) < 0)
+				goto err;
+
+			/* This uses a bit packing that isn't either mu-law or
+				* normal Archimedes VIDC. Convert to the latter... */
+			for (j = 0; j < size; j++) {
+				uint8 t = (buf[j] < 128) ? ~buf[j] : buf[j];
+				buf[j] = (buf[j] >> 7) | (t << 1);
 			}
+
 			ret = libxmp_load_sample(m, NULL,
 					SAMPLE_FLAG_NOLOAD | SAMPLE_FLAG_VIDC,
 					&mod->xxs[i], buf);
@@ -571,16 +557,12 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
 		default:
 			D_(D_CRIT "unknown sample type %d @ %ld\n", a, hio_tell(f));
-			ret = -1;
-			break;
+			goto err;
 		}
 
-		if (ret < 0) {
-			free(buf);
-			return -1;
-		}
+		if (ret < 0)
+			goto err;
 	}
-	free(buf);
 
 	/* Information text */
 	if (infolen > 0) {
@@ -606,5 +588,10 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		mod->xxc[i].pan = DEFPAN((((i + 3) / 2) % 2) * 0xff);
 	}
 
+	free(buf);
 	return 0;
+
+err:
+	free(buf);
+	return -1;
 }
