@@ -111,8 +111,15 @@ static void fix_effect(struct xmp_event *e, int parm)
 	case 0x0b:	/* 0B xxx Position Jump */
 	case 0x0c:	/* 0C xyy Set Volume */
 	case 0x0d:	/* 0D xyy Pattern Break */
-	case 0x0f:	/* 0F xxx Set Speed */
 		e->fxp = parm;
+		break;
+	case 0x0f:	/* 0F xxx Set Speed */
+		if (parm) {
+			e->fxt = FX_S3M_SPEED;
+			e->fxp = MIN(parm, 255);
+		} else {
+			e->fxt = 0;
+		}
 		break;
 	case 0x13:	/* 13 xxy Glissando Control */
 		e->fxt = FX_EXTENDED;
@@ -214,16 +221,17 @@ static void fix_effect(struct xmp_event *e, int parm)
 		e->f2p = (EX_F_PORTA_DN << 4) | (parm >> 8);
 		break;
 	case 0x2b:	/* 2B xyy Line Jump */
-		/* TODO: is this meant to be decimal like the !Tracker effect? */
 		e->fxt = FX_LINE_JUMP;
-		e->fxp = (e->fxp < 0x40) ? e->fxp : 0;
+		e->fxp = (parm < 0x40) ? parm : 0;
 		break;
 	case 0x2f:	/* 2F xxx Set Tempo */
-		if (parm >= 0x100 && parm <= 0x800) {
-			e->fxt = FX_SPEED;
-			e->fxp = (parm+4) >> 3; /* round to nearest */
+		if (parm) {
+			parm = (parm + 4) >> 3; /* round to nearest */
+			CLAMP(parm, XMP_MIN_BPM, 255);
+			e->fxt = FX_S3M_BPM;
+			e->fxp = parm;
 		} else {
-			/* umm... */
+			e->fxt = 0;
 		}
 		break;
 	case 0x30:	/* 30 xxy Set Stereo */
@@ -587,6 +595,8 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	for (i = 0; i < mod->chn; i++) {
 		mod->xxc[i].pan = DEFPAN((((i + 3) / 2) % 2) * 0xff);
 	}
+
+	m->quirk = QUIRK_VIBALL;
 
 	free(buf);
 	return 0;
