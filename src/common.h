@@ -294,7 +294,10 @@ struct smix_data {
 
 /* This will be added to the sample structure in the next API revision */
 struct extra_sample_data {
+	unsigned char *data_reverse;
 	double c5spd;
+	int sus;
+	int sue;
 };
 
 struct module_data {
@@ -334,9 +337,6 @@ struct module_data {
 	void *extra;			/* format-specific extra fields */
 	uint8 **scan_cnt;		/* scan counters */
 	struct extra_sample_data *xtra;
-#ifndef LIBXMP_CORE_DISABLE_IT
-	struct xmp_sample *xsmp;	/* sustain loop samples */
-#endif
 };
 
 

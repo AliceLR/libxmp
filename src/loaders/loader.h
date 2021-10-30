@@ -48,7 +48,9 @@ void	libxmp_get_instrument_path	(struct module_data *, char *, int);
 void	libxmp_set_type			(struct module_data *, const char *, ...);
 int	libxmp_load_sample		(struct module_data *, HIO_HANDLE *, int,
 					 struct xmp_sample *, const void *);
+void	libxmp_reverse_sample		(struct xmp_sample *, struct extra_sample_data *);
 void	libxmp_free_sample		(struct xmp_sample *);
+void	libxmp_free_sample_extra	(struct extra_sample_data *);
 #ifndef LIBXMP_CORE_PLAYER
 void	libxmp_schism_tracker_string	(char *, size_t, int, int);
 #endif
