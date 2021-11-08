@@ -40,7 +40,7 @@ struct far_module_extras {
 	(FAR_MODULE_EXTRAS(x) != NULL && \
 	 FAR_MODULE_EXTRAS(x)->magic == FAR_EXTRAS_MAGIC)
 
-int libxmp_far_translate_tempo(int, int, int *, int *, int *);
+int libxmp_far_translate_tempo(int, int, int, int *, int *, int *);
 
 int  libxmp_far_linear_bend(struct context_data *, struct channel_data *);
 int  libxmp_far_new_channel_extras(struct channel_data *);

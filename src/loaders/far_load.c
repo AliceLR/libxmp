@@ -240,7 +240,7 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     me->fine_tempo = 0;
     me->tempo_mode = 1;
     m->time_factor = FAR_TIME_FACTOR;
-    libxmp_far_translate_tempo(1, me->coarse_tempo, &me->fine_tempo, &mod->spd, &mod->bpm);
+    libxmp_far_translate_tempo(1, 0, me->coarse_tempo, &me->fine_tempo, &mod->spd, &mod->bpm);
 
     m->quirk |= QUIRK_PBALL;
 

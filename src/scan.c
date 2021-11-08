@@ -103,7 +103,7 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
     far_tempo_mode = 1;
 
     if (HAS_FAR_MODULE_EXTRAS(ctx->m)) {
-	libxmp_far_translate_tempo(far_tempo_mode, far_tempo_coarse,
+	libxmp_far_translate_tempo(far_tempo_mode, 0, far_tempo_coarse,
 				   &far_tempo_fine, &speed, &bpm);
     }
 #endif
@@ -351,10 +351,10 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
 		/* FAR tempo processing */
 
 		if (f1 == FX_FAR_TEMPO || f1 == FX_FAR_F_TEMPO) {
-			int far_speed, far_bpm;
+			int far_speed, far_bpm, fine_change = 0;
 			if (f1 == FX_FAR_TEMPO) {
 				if (MSN(p1)) {
-					far_tempo_mode = MSN(p1);
+					far_tempo_mode = MSN(p1) - 1;
 				} else {
 					far_tempo_coarse = LSN(p1);
 				}
@@ -362,14 +362,16 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
 			if (f1 == FX_FAR_F_TEMPO) {
 				if (MSN(p1)) {
 					far_tempo_fine += MSN(p1);
+					fine_change = MSN(p1);
 				} else if (LSN(p1)) {
 					far_tempo_fine -= LSN(p1);
+					fine_change = -LSN(p1);
 				} else {
 					far_tempo_fine = 0;
 				}
 			}
-			if (libxmp_far_translate_tempo(far_tempo_mode, far_tempo_coarse,
-			    &far_tempo_fine, &far_speed, &far_bpm) == 0) {
+			if (libxmp_far_translate_tempo(far_tempo_mode, fine_change,
+			    far_tempo_coarse, &far_tempo_fine, &far_speed, &far_bpm) == 0) {
 				frame_count += row_count * speed;
 				row_count = 0;
 				time += m->time_factor * frame_count * base_time / bpm;

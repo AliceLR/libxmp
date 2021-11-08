@@ -44,7 +44,8 @@
  *
  * 4) There are two tempo modes, and they can be switched between arbitrarily...
  */
-int libxmp_far_translate_tempo(int mode, int coarse, int *fine, int *_speed, int *_bpm)
+int libxmp_far_translate_tempo(int mode, int fine_change, int coarse,
+			       int *fine, int *_speed, int *_bpm)
 {
 	/* tempo[0] = 256; tempo[i] = floor(128 / i). */
 	static const int far_tempos[16] =
@@ -57,9 +58,9 @@ int libxmp_far_translate_tempo(int mode, int coarse, int *fine, int *_speed, int
 		return -1;
 
 	/* Compatibility for FAR's broken fine tempo "clamping". */
-	if (far_tempos[coarse] + *fine <= 0) {
+	if (fine_change < 0 && far_tempos[coarse] + *fine <= 0) {
 		*fine = 0;
-	} else if (far_tempos[coarse] + *fine >= 100) {
+	} else if (fine_change > 0 && far_tempos[coarse] + *fine >= 100) {
 		*fine = 100;
 	}
 
@@ -83,9 +84,10 @@ int libxmp_far_translate_tempo(int mode, int coarse, int *fine, int *_speed, int
 		speed += 3;
 		bpm = tempo;
 	} else {
-		/* "Old" FAR tempo */
+		/* "Old" FAR tempo
+		 * This runs into the XMP_MIN_BPM limit, but nothing uses it anyway. */
 		speed = 16;
-		bpm = (far_tempos[coarse] + *fine * 2) >> 1;
+		bpm = (far_tempos[coarse] + *fine * 2) << 2;
 	}
 
 	if (bpm < XMP_MIN_BPM)
@@ -96,15 +98,15 @@ int libxmp_far_translate_tempo(int mode, int coarse, int *fine, int *_speed, int
 	return 0;
 }
 
-static void libxmp_far_update_tempo(struct context_data *ctx)
+static void libxmp_far_update_tempo(struct context_data *ctx, int fine_change)
 {
 	struct player_data *p = &ctx->p;
 	struct module_data *m = &ctx->m;
 	struct far_module_extras *me = (struct far_module_extras *)m->extra;
 	int speed, bpm;
 
-	if (libxmp_far_translate_tempo(me->tempo_mode, me->coarse_tempo,
-	    &me->fine_tempo, &speed, &bpm) == 0) {
+	if (libxmp_far_translate_tempo(me->tempo_mode, fine_change,
+	    me->coarse_tempo, &me->fine_tempo, &speed, &bpm) == 0) {
 		p->speed = speed;
 		p->bpm = bpm;
 		p->frame_time = m->time_factor * m->rrate / p->bpm;
@@ -154,6 +156,7 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 	struct far_channel_extras *ce = FAR_CHANNEL_EXTRAS(*xc);
 	int update_tempo = 0;
 	int update_vibrato = 0;
+	int fine_change = 0;
 
 	/* Effects here multiplexed to reduce the number of used effect numbers. */
 	switch (fxt) {
@@ -180,8 +183,10 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 	case FX_FAR_F_TEMPO:		/* FAR fine tempo slide up/down */
 		if (MSN(fxp)) {
 			me->fine_tempo += MSN(fxp);
+			fine_change = MSN(fxp);
 		} else if (LSN(fxp)) {
 			me->fine_tempo -= LSN(fxp);
+			fine_change = -LSN(fxp);
 		} else {
 			me->fine_tempo = 0;
 		}
@@ -207,5 +212,5 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 	}
 
 	if (update_tempo)
-		libxmp_far_update_tempo(ctx);
+		libxmp_far_update_tempo(ctx, fine_change);
 }
