@@ -1062,6 +1062,25 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 		SET_LFO_NOTZERO(&xc->vibrato.lfo, 669, 1);
 		break;
 
+	/* FAR effects (also see far_extras.c) */
+
+	case FX_FAR_TPORTA:		/* FAR persistent tone portamento */
+		if (IS_VALID_INSTRUMENT(xc->ins)) {
+			int diff, step;
+			SET_PER(TONEPORTA);
+			do_toneporta(ctx, xc, note);
+
+			if (fxp < 1)
+				fxp = 1;
+
+			diff = xc->porta.target - xc->period;
+			step = (diff > 0 ? diff : -diff) / (p->speed * fxp);
+
+			xc->porta.slide = (step > 0) ? step : 1;
+		}
+		break;
+
+
 	/* ULT effects */
 
 	case FX_ULT_TPORTA:	/* ULT tone portamento */

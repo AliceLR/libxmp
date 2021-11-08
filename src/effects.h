@@ -76,8 +76,15 @@
 #define FX_669_FINETUNE	0x63
 #define FX_669_VIBRATO	0x64
 
-/* Other frequency based effects (ULT, FAR, etc) */
-#define FX_ULT_TPORTA   0x68
+/* FAR effects. */
+#define FX_FAR_TPORTA	0x65 /* FAR persistent tone portamento */
+#define FX_FAR_TEMPO	0x66 /* FAR coarse tempo and tempo mode */
+#define FX_FAR_F_TEMPO	0x67 /* FAR fine tempo slide up/down */
+#define FX_FAR_VIB_DEPTH 0x68 /* FAR set vibrato depth */
+#define FX_FAR_VIBRATO	0x69 /* FAR persistent vibrato */
+
+/* Other frequency based effects (ULT, etc) */
+#define FX_ULT_TPORTA   0x6a
 #endif
 
 #ifndef LIBXMP_CORE_DISABLE_IT

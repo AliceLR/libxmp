@@ -25,6 +25,7 @@
 #include "extras.h"
 #include "med_extras.h"
 #include "hmn_extras.h"
+#include "far_extras.h"
 
 /*
  * Module extras
@@ -38,6 +39,8 @@ void libxmp_release_module_extras(struct context_data *ctx)
 		libxmp_med_release_module_extras(m);
 	else if (HAS_HMN_MODULE_EXTRAS(*m))
 		libxmp_hmn_release_module_extras(m);
+	else if (HAS_FAR_MODULE_EXTRAS(*m))
+		libxmp_far_release_module_extras(m);
 }
 
 /*
@@ -54,6 +57,9 @@ int libxmp_new_channel_extras(struct context_data *ctx, struct channel_data *xc)
 	} else if (HAS_HMN_MODULE_EXTRAS(*m)) {
 		if (libxmp_hmn_new_channel_extras(xc) < 0)
 			return -1;
+	} else if (HAS_FAR_MODULE_EXTRAS(*m)) {
+		if (libxmp_far_new_channel_extras(xc) < 0)
+			return -1;
 	}
 
 	return 0;
@@ -67,6 +73,8 @@ void libxmp_release_channel_extras(struct context_data *ctx, struct channel_data
 		libxmp_med_release_channel_extras(xc);
 	else if (HAS_HMN_CHANNEL_EXTRAS(*m))
 		libxmp_hmn_release_channel_extras(xc);
+	else if (HAS_FAR_CHANNEL_EXTRAS(*m))
+		libxmp_far_release_channel_extras(xc);
 }
 
 void libxmp_reset_channel_extras(struct context_data *ctx, struct channel_data *xc)
@@ -77,6 +85,8 @@ void libxmp_reset_channel_extras(struct context_data *ctx, struct channel_data *
 		libxmp_med_reset_channel_extras(xc);
 	else if (HAS_HMN_CHANNEL_EXTRAS(*m))
 		libxmp_hmn_reset_channel_extras(xc);
+	else if (HAS_FAR_CHANNEL_EXTRAS(*m))
+		libxmp_far_reset_channel_extras(xc);
 }
 
 /*
@@ -145,4 +155,6 @@ void libxmp_extras_process_fx(struct context_data *ctx, struct channel_data *xc,
 		libxmp_med_extras_process_fx(ctx, xc, chn, note, fxt, fxp, fnum);
 	else if (HAS_HMN_CHANNEL_EXTRAS(*xc))
 		libxmp_hmn_extras_process_fx(ctx, xc, chn, note, fxt, fxp, fnum);
+	else if (HAS_FAR_CHANNEL_EXTRAS(*xc))
+		libxmp_far_extras_process_fx(ctx, xc, chn, note, fxt, fxp, fnum);
 }

@@ -27,6 +27,7 @@
  */
 
 #include "loader.h"
+#include "../far_extras.h"
 
 struct far_header {
 	uint32 magic;		/* File magic: 'FAR\xfe' */
@@ -92,39 +93,94 @@ static int far_test(HIO_HANDLE *f, char *t, const int start)
 }
 
 
-#define NONE			0xff
-#define FX_FAR_SETVIBRATO	0xfe
-#define FX_FAR_VSLIDE_UP	0xfd
-#define FX_FAR_VSLIDE_DN	0xfc
-#define FX_FAR_RETRIG		0xfb
-#define FX_FAR_DELAY		0xfa
-#define FX_FAR_PORTA_UP		0xf9
-#define FX_FAR_PORTA_DN		0xf8
-
-static const uint8 fx[16] = {
-    NONE,
-    FX_FAR_PORTA_UP,		/* 0x1?  Pitch Adjust */
-    FX_FAR_PORTA_DN,		/* 0x2?  Pitch Adjust */
-    FX_PER_TPORTA,		/* 0x3?  Port to Note -- FIXME */
-    FX_FAR_RETRIG,		/* 0x4?  Retrigger */
-    FX_FAR_SETVIBRATO,		/* 0x5?  Set VibDepth */
-    FX_VIBRATO,			/* 0x6?  Vibrato note */
-    FX_FAR_VSLIDE_UP,		/* 0x7?  VolSld Up */
-    FX_FAR_VSLIDE_DN,		/* 0x8?  VolSld Dn */
-    FX_PER_VIBRATO,		/* 0x9?  Vibrato Sust */
-    NONE,			/* 0xa?  Port To Vol */
-    NONE,			/* N/A */
-    FX_FAR_DELAY,		/* 0xc?  Note Offset */
-    NONE,			/* 0xd?  Fine Tempo dn */
-    NONE,			/* 0xe?  Fine Tempo up */
-    FX_SPEED			/* 0xf?  Tempo */
-};
-
+static void far_translate_effect(struct xmp_event *event, int fx, int param)
+{
+	switch (fx) {
+	case 0x0:		/* 0x0?  Global funct */
+		switch (param) {
+		case 0x1:	/* 0x01  Ramp delay on */
+		case 0x2:	/* 0x02  Ramp delay off */
+		case 0x3:	/* 0x03  Fulfill loop */
+			/* TODO: not even sure what any of these do. */
+			event->fxt = event->fxp = 0;
+			break;
+		case 0x4:	/* 0x04  Old FAR tempo */
+			event->fxt = FX_FAR_TEMPO;
+			event->fxp = 0x10;
+			break;
+		case 0x5:	/* 0x05  New FAR tempo */
+			event->fxt = FX_FAR_TEMPO;
+			event->fxp = 0x20;
+			break;
+		}
+		break;
+	case 0x1:		/* 0x1?  Pitch offset up */
+		event->fxt = FX_EXTENDED;
+		event->fxp = (EX_F_PORTA_UP << 4) | param;
+		break;
+	case 0x2:		/* 0x2?  Pitch offset down */
+		event->fxt = FX_EXTENDED;
+		event->fxp = (EX_F_PORTA_DN << 4) | param;
+		break;
+	case 0x3:		/* 0x3?  Note-port */
+		event->fxt = FX_FAR_TPORTA;
+		event->fxp = param;
+		break;
+	case 0x4:			/* 0x4?  Retrigger */
+		event->fxt = FX_EXTENDED;
+		event->fxp = (EX_RETRIG << 4) | param;
+		break;
+	case 0x5:			/* 0x5?  Set Vibrato depth */
+		event->fxt = FX_FAR_VIB_DEPTH;
+		event->fxp = param;
+		break;
+	case 0x6:			/* 0x6?  Vibrato note */
+		event->fxt = FX_FAR_VIBRATO;
+		event->fxp = 0x10 /* Vibrato note flag */ | param;
+		break;
+	case 0x7:			/* 0x7?  Vol Sld Up */
+		event->fxt = FX_F_VSLIDE_UP;
+		event->fxp = (param << 4);
+		break;
+	case 0x8:			/* 0x8?  Vol Sld Dn */
+		event->fxt = FX_F_VSLIDE_DN;
+		event->fxp = (param << 4);
+		break;
+	case 0x9:			/* 0x9?  Sustained vibrato */
+		event->fxt = FX_FAR_VIBRATO;
+		event->fxp = param;
+		break;
+	case 0xa:			/* 0xa?  Slide-to-vol */
+		/* FIXME: implement! */
+		break;
+	case 0xb:			/* 0xb?  Balance */
+		event->fxt = FX_EXTENDED;
+		event->fxp = (EX_SETPAN << 4) | param;
+		break;
+	case 0xc:			/* 0xc?  Note Offset */
+		event->fxt = FX_EXTENDED;
+		event->fxp = (EX_DELAY << 4) | param;
+		break;
+	case 0xd:			/* 0xd?  Fine tempo down */
+		event->fxt = FX_FAR_F_TEMPO;
+		event->fxp = param;
+		break;
+	case 0xe:			/* 0xe?  Fine tempo up */
+		event->fxt = FX_FAR_F_TEMPO;
+		event->fxp = param << 4;
+		break;
+	case 0xf:			/* 0xf?  Set tempo */
+		event->fxt = FX_FAR_TEMPO;
+		event->fxp = param;
+		break;
+	}
+}
 
 static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 {
     struct xmp_module *mod = &m->mod;
-    int i, j, vib = 0;
+    struct far_module_extras *me;
+    int i, j, k;
     struct xmp_event *event;
     struct far_header ffh;
     struct far_header2 ffh2;
@@ -167,8 +223,6 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     mod->chn = 16;
     /*mod->pat=ffh2.patterns; (Error in specs? --claudio) */
     mod->len = ffh2.songlen;
-    mod->spd = 6;
-    mod->bpm = 8 * 60 / ffh.tempo;
     memcpy (mod->xxo, ffh2.order, mod->len);
 
     for (mod->pat = i = 0; i < 256; i++) {
@@ -177,6 +231,18 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     }
 
     mod->trk = mod->chn * mod->pat;
+
+    if (libxmp_far_new_module_extras(m) != 0)
+	return -1;
+
+    me = FAR_MODULE_EXTRAS(*m);
+    me->coarse_tempo = 4;
+    me->fine_tempo = 0;
+    me->tempo_mode = 1;
+    m->time_factor = FAR_TIME_FACTOR;
+    libxmp_far_translate_tempo(1, me->coarse_tempo, &me->fine_tempo, &mod->spd, &mod->bpm);
+
+    m->quirk |= QUIRK_PBALL;
 
     strncpy(mod->name, (char *)ffh.name, 40);
     libxmp_set_type(m, "Farandole Composer %d.%d", MSN(ffh.version), LSN(ffh.version));
@@ -215,78 +281,34 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	brk = hio_read8(f) + 1;
 	hio_read8(f);
 
-	for (j = 0; j < mod->xxp[i]->rows * mod->chn; j++) {
-	    event = &EVENT(i, j % mod->chn, j / mod->chn);
+	for (j = 0; j < mod->xxp[i]->rows; j++) {
+	    for (k = 0; k < mod->chn; k++) {
+		uint8 ev[4];
+		event = &EVENT(i, k, j);
 
-	    if ((j % mod->chn) == 0 && (j / mod->chn) == brk)
-		event->f2t = FX_BREAK;
+		if (k == 0 && j == brk)
+		    event->f2t = FX_BREAK;
 
-	    note = hio_read8(f);
-	    ins = hio_read8(f);
-	    vol = hio_read8(f);
-	    fxb = hio_read8(f);
-
-	    if (note)
-		event->note = note + 48;
-	    if (event->note || ins)
-		event->ins = ins + 1;
-
-	    if (vol >= 0x01 && vol <= 0x10)
-		event->vol = (vol - 1) * 16 + 1;
-
-	    event->fxt = fx[MSN(fxb)];
-	    event->fxp = LSN(fxb);
-
-	    switch (event->fxt) {
-	    case NONE:
-	        event->fxt = event->fxp = 0;
-		break;
-	    case FX_FAR_PORTA_UP:
-		event->fxt = FX_EXTENDED;
-		event->fxp |= (EX_F_PORTA_UP << 4);
-		break;
-	    case FX_FAR_PORTA_DN:
-		event->fxt = FX_EXTENDED;
-		event->fxp |= (EX_F_PORTA_DN << 4);
-		break;
-	    case FX_FAR_RETRIG:
-		event->fxt = FX_EXTENDED;
-		event->fxp |= (EX_RETRIG << 4);
-		break;
-	    case FX_FAR_DELAY:
-		event->fxt = FX_EXTENDED;
-		event->fxp |= (EX_DELAY << 4);
-		break;
-	    case FX_FAR_SETVIBRATO:
-		vib = event->fxp & 0x0f;
-		event->fxt = event->fxp = 0;
-		break;
-	    case FX_VIBRATO:
-		event->fxp = (event->fxp << 4) + vib;
-		break;
-	    case FX_PER_VIBRATO:
-		event->fxp = (event->fxp << 4) + vib;
-		break;
-	    case FX_FAR_VSLIDE_UP:	/* Fine volume slide up */
-		event->fxt = FX_EXTENDED;
-		event->fxp |= (EX_F_VSLIDE_UP << 4);
-		break;
-	    case FX_FAR_VSLIDE_DN:	/* Fine volume slide down */
-		event->fxt = FX_EXTENDED;
-		event->fxp |= (EX_F_VSLIDE_DN << 4);
-		break;
-	    case FX_SPEED:
-		if (event->fxp != 0) {
-			event->fxp = 8 * 60 / event->fxp;
-		} else {
-			event->fxt = 0;
+		if (hio_read(ev, 1, 4, f) < 4) {
+			D_(D_CRIT "read error at pat %d", i);
+			return -1;
 		}
-		break;
+
+		note = ev[0];
+		ins = ev[1];
+		vol = ev[2];
+		fxb = ev[3];
+
+		if (note)
+		    event->note = note + 48;
+		if (event->note || ins)
+		    event->ins = ins + 1;
+
+		if (vol >= 0x01 && vol <= 0x10)
+		    event->vol = (vol - 1) * 16 + 1;
+
+		far_translate_effect(event, MSN(fxb), LSN(fxb));
 	    }
-	}
-	if(hio_error(f)) {
-		D_(D_CRIT "read error at pat %d", i);
-		return -1;
 	}
     }
 
