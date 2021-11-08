@@ -1080,6 +1080,18 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 		}
 		break;
 
+	case FX_FAR_SLIDEVOL: {		/* FAR persistent slide-to-volume */
+			int target = MSN(fxp) << 4;
+			int diff = target - xc->volume;
+			int rate = LSN(fxp) ? LSN(fxp) : 1;
+			int step = diff / (p->speed * rate);
+			if (step == 0)
+				step = (diff > 0) ? 1 : -1;
+			SET_PER(VOL_SLIDE);
+			xc->vol.slide = step;
+			xc->vol.target = target + 1;
+		}
+		break;
 
 	/* ULT effects */
 

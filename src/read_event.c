@@ -349,6 +349,7 @@ static int read_event_mod(struct context_data *ctx, struct xmp_event *e, int chn
 	if (e->vol) {
 		xc->volume = e->vol - 1;
 		SET(NEW_VOL);
+		RESET_PER(VOL_SLIDE); /* FIXME: should this be for FAR only? */
 	}
 
 	/* Secondary effect handled first */

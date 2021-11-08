@@ -82,9 +82,10 @@
 #define FX_FAR_F_TEMPO	0x67 /* FAR fine tempo slide up/down */
 #define FX_FAR_VIB_DEPTH 0x68 /* FAR set vibrato depth */
 #define FX_FAR_VIBRATO	0x69 /* FAR persistent vibrato */
+#define FX_FAR_SLIDEVOL 0x6a /* FAR persistent slide-to-volume */
 
 /* Other frequency based effects (ULT, etc) */
-#define FX_ULT_TPORTA   0x6a
+#define FX_ULT_TPORTA   0x6b
 #endif
 
 #ifndef LIBXMP_CORE_DISABLE_IT

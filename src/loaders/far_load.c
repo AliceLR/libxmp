@@ -93,7 +93,7 @@ static int far_test(HIO_HANDLE *f, char *t, const int start)
 }
 
 
-static void far_translate_effect(struct xmp_event *event, int fx, int param)
+static void far_translate_effect(struct xmp_event *event, int fx, int param, int vol)
 {
 	switch (fx) {
 	case 0x0:		/* 0x0?  Global funct */
@@ -151,11 +151,15 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param)
 		event->fxp = param;
 		break;
 	case 0xa:			/* 0xa?  Slide-to-vol */
-		/* FIXME: implement! */
+		if (vol >= 0x01 && vol <= 0x10) {
+			event->fxt = FX_FAR_SLIDEVOL;
+			event->fxp = ((vol - 1) << 4) | param;
+			event->vol = 0;
+		}
 		break;
 	case 0xb:			/* 0xb?  Balance */
-		event->fxt = FX_EXTENDED;
-		event->fxp = (EX_SETPAN << 4) | param;
+		event->fxt = FX_SETPAN;
+		event->fxp = (param << 4) | param;
 		break;
 	case 0xc:			/* 0xc?  Note Offset */
 		event->fxt = FX_EXTENDED;
@@ -174,6 +178,35 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param)
 		event->fxp = param;
 		break;
 	}
+}
+
+#define COMMENT_MAXLINES 44
+
+static void far_read_text(char *dest, size_t textlen, HIO_HANDLE *f)
+{
+	/* FAR module text uses 132-char lines with no line breaks... */
+	size_t end, lastchar, i;
+
+	if (textlen > COMMENT_MAXLINES * 132)
+		textlen = COMMENT_MAXLINES * 132;
+
+	while (textlen) {
+		end = MIN(textlen, 132);
+		textlen -= end;
+		end = hio_read(dest, 1, end, f);
+
+		lastchar = 0;
+		for (i = 0; i < end; i++) {
+			/* Nulls in the text area are equivalent to spaces. */
+			if (dest[i] == '\0')
+				dest[i] = ' ';
+			else if (dest[i] != ' ')
+				lastchar = i;
+		}
+		dest += lastchar + 1;
+		*dest++ = '\n';
+	}
+	*dest = '\0';
 }
 
 static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
@@ -206,7 +239,11 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	return -1;
     }
 
-    hio_seek(f, ffh.textlen, SEEK_CUR);	/* Skip song text */
+    if ((m->comment = (char *)malloc(ffh.textlen + COMMENT_MAXLINES + 1)) != NULL) {
+	far_read_text(m->comment, ffh.textlen, f);
+    } else {
+	hio_seek(f, ffh.textlen, SEEK_CUR);	/* Skip song text */
+    }
 
     hio_read(ffh2.order, 256, 1, f);	/* Orders */
     ffh2.patterns = hio_read8(f);	/* Number of stored patterns (?) */
@@ -236,13 +273,13 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	return -1;
 
     me = FAR_MODULE_EXTRAS(*m);
-    me->coarse_tempo = 4;
+    me->coarse_tempo = ffh.tempo;
     me->fine_tempo = 0;
     me->tempo_mode = 1;
     m->time_factor = FAR_TIME_FACTOR;
     libxmp_far_translate_tempo(1, 0, me->coarse_tempo, &me->fine_tempo, &mod->spd, &mod->bpm);
 
-    m->quirk |= QUIRK_PBALL;
+    m->quirk |= QUIRK_VSALL | QUIRK_PBALL;
 
     strncpy(mod->name, (char *)ffh.name, 40);
     libxmp_set_type(m, "Farandole Composer %d.%d", MSN(ffh.version), LSN(ffh.version));
@@ -307,7 +344,7 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		if (vol >= 0x01 && vol <= 0x10)
 		    event->vol = (vol - 1) * 16 + 1;
 
-		far_translate_effect(event, MSN(fxb), LSN(fxb));
+		far_translate_effect(event, MSN(fxb), LSN(fxb), vol);
 	    }
 	}
     }
@@ -381,7 +418,7 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		return -1;
     }
 
-    m->volbase = 0xff;
+    m->volbase = 0xf0;
 
     return 0;
 }

@@ -164,6 +164,9 @@ struct channel_data {
 		int fslide2;
 		int memory2;	/* Volume slide effect memory */
 #endif
+#ifndef LIBXMP_CORE_PLAYER
+		int target;	/* Target for persistent volslide */
+#endif
 	} vol;
 
 	struct {
