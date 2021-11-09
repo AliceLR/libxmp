@@ -12,9 +12,8 @@ struct far_instrument_extras {
 */
 struct far_channel_extras {
 	uint32 magic;
-	int vib_rate;
-	int vib_depth;
-	int vib_note;
+	int vib_sustain;	/* Is vibrato persistent? */
+	int vib_rate;		/* Vibrato rate. */
 };
 
 struct far_module_extras {
@@ -22,6 +21,7 @@ struct far_module_extras {
 	int coarse_tempo;
 	int fine_tempo;
 	int tempo_mode;
+	int vib_depth;		/* Vibrato depth for all channels. */
 };
 
 /*
@@ -42,6 +42,7 @@ struct far_module_extras {
 
 int libxmp_far_translate_tempo(int, int, int, int *, int *, int *);
 
+void libxmp_far_play_extras(struct context_data *, struct channel_data *, int);
 int  libxmp_far_linear_bend(struct context_data *, struct channel_data *);
 int  libxmp_far_new_channel_extras(struct channel_data *);
 void libxmp_far_reset_channel_extras(struct channel_data *);

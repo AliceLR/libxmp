@@ -97,12 +97,15 @@ void libxmp_play_extras(struct context_data *ctx, struct channel_data *xc, int c
 {
 	struct module_data *m = &ctx->m;
 
+	if (HAS_FAR_CHANNEL_EXTRAS(*xc))
+		libxmp_far_play_extras(ctx, xc, chn);
+
 	if (xc->ins >= m->mod.ins)	/* SFX instruments have no extras */
 		return;
 
-        if (HAS_MED_INSTRUMENT_EXTRAS(m->mod.xxi[xc->ins]))
+	if (HAS_MED_INSTRUMENT_EXTRAS(m->mod.xxi[xc->ins]))
 		libxmp_med_play_extras(ctx, xc, chn);
-        else if (HAS_HMN_INSTRUMENT_EXTRAS(m->mod.xxi[xc->ins]))
+	else if (HAS_HMN_INSTRUMENT_EXTRAS(m->mod.xxi[xc->ins]))
 		libxmp_hmn_play_extras(ctx, xc, chn);
 }
 
@@ -113,7 +116,7 @@ int libxmp_extras_get_volume(struct context_data *ctx, struct channel_data *xc)
 
 	if (xc->ins >= m->mod.ins)
 		vol = xc->volume;
-        else if (HAS_MED_INSTRUMENT_EXTRAS(m->mod.xxi[xc->ins]))
+	else if (HAS_MED_INSTRUMENT_EXTRAS(m->mod.xxi[xc->ins]))
 		vol = MED_CHANNEL_EXTRAS(*xc)->volume * xc->volume / 64;
 	else if (HAS_HMN_INSTRUMENT_EXTRAS(m->mod.xxi[xc->ins]))
 		vol = HMN_CHANNEL_EXTRAS(*xc)->volume * xc->volume / 64;

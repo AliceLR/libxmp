@@ -100,9 +100,12 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param, int
 		switch (param) {
 		case 0x1:	/* 0x01  Ramp delay on */
 		case 0x2:	/* 0x02  Ramp delay off */
+			/* These control volume ramping and can be ignored. */
+			break;
 		case 0x3:	/* 0x03  Fulfill loop */
-			/* TODO: not even sure what any of these do. */
-			event->fxt = event->fxp = 0;
+			/* FIXME: this should actually allow the loop to finish
+			 * before stopping. */
+			event->fxt = FX_KEYOFF;
 			break;
 		case 0x4:	/* 0x04  Old FAR tempo */
 			event->fxt = FX_FAR_TEMPO;
@@ -136,7 +139,7 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param, int
 		break;
 	case 0x6:			/* 0x6?  Vibrato note */
 		event->fxt = FX_FAR_VIBRATO;
-		event->fxp = 0x10 /* Vibrato note flag */ | param;
+		event->fxp = param;
 		break;
 	case 0x7:			/* 0x7?  Vol Sld Up */
 		event->fxt = FX_F_VSLIDE_UP;
@@ -148,7 +151,7 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param, int
 		break;
 	case 0x9:			/* 0x9?  Sustained vibrato */
 		event->fxt = FX_FAR_VIBRATO;
-		event->fxp = param;
+		event->fxp = 0x10 /* Vibrato sustain flag */ | param;
 		break;
 	case 0xa:			/* 0xa?  Slide-to-vol */
 		if (vol >= 0x01 && vol <= 0x10) {
@@ -279,7 +282,8 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     m->time_factor = FAR_TIME_FACTOR;
     libxmp_far_translate_tempo(1, 0, me->coarse_tempo, &me->fine_tempo, &mod->spd, &mod->bpm);
 
-    m->quirk |= QUIRK_VSALL | QUIRK_PBALL;
+    /* QUIRK_VIBINV because vibrato is added to frequency, not period */
+    m->quirk |= QUIRK_VSALL | QUIRK_PBALL | QUIRK_VIBALL | QUIRK_VIBINV;
 
     strncpy(mod->name, (char *)ffh.name, 40);
     libxmp_set_type(m, "Farandole Composer %d.%d", MSN(ffh.version), LSN(ffh.version));

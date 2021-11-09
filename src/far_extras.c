@@ -113,6 +113,26 @@ static void libxmp_far_update_tempo(struct context_data *ctx, int fine_change)
 	}
 }
 
+static void libxmp_far_update_vibrato(struct lfo *lfo, int rate, int depth)
+{
+	if (depth != 0)
+		libxmp_lfo_set_depth(lfo, depth << 2);
+
+	/* This is a little bit slower than FAR vibrato,
+	 * but faster sounds bad in libxmp. */
+	if (rate != 0)
+		libxmp_lfo_set_rate(lfo, rate << 1);
+}
+
+
+void libxmp_far_play_extras(struct context_data *ctx, struct channel_data *xc, int chn)
+{
+	struct far_module_extras *me = FAR_MODULE_EXTRAS(ctx->m);
+
+	/* FAR vibrato depth is global, even though rate isn't. This might have
+	 * been changed by a different channel, so make sure it's applied. */
+	libxmp_far_update_vibrato(&xc->vibrato.lfo, 0, me->vib_depth);
+}
 
 int libxmp_far_new_channel_extras(struct channel_data *xc)
 {
@@ -140,6 +160,7 @@ int libxmp_far_new_module_extras(struct module_data *m)
 	if (m->extra == NULL)
 		return -1;
 	FAR_MODULE_EXTRAS(*m)->magic = FAR_EXTRAS_MAGIC;
+	FAR_MODULE_EXTRAS(*m)->vib_depth = 4;
 	return 0;
 }
 
@@ -161,12 +182,14 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 	/* Effects here multiplexed to reduce the number of used effect numbers. */
 	switch (fxt) {
 	case FX_FAR_VIB_DEPTH:		/* FAR set vibrato depth */
-		ce->vib_depth = fxp;
+		me->vib_depth = LSN(fxp);
 		update_vibrato = 1;
 		break;
 
-	case FX_FAR_VIBRATO:		/* FAR persistent vibrato */
-		ce->vib_note = MSN(fxp);
+	case FX_FAR_VIBRATO:		/* FAR vibrato */
+		/* With active sustain, regular vibrato only sets the rate. */
+		if (ce->vib_sustain == 0)
+			ce->vib_sustain = MSN(fxp);
 		ce->vib_rate = LSN(fxp);
 		update_vibrato = 1;
 		break;
@@ -196,19 +219,15 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 
 	if (update_vibrato) {
 		if (ce->vib_rate != 0) {
-			SET_PER(VIBRATO);
+			if (ce->vib_sustain)
+				SET_PER(VIBRATO);
+			else
+				SET(VIBRATO);
 		} else {
 			RESET_PER(VIBRATO);
+			ce->vib_sustain = 0;
 		}
-		if (ce->vib_depth != 0)
-			libxmp_lfo_set_depth(&xc->vibrato.lfo, ce->vib_depth);
-		if (ce->vib_rate != 0)
-			libxmp_lfo_set_rate(&xc->vibrato.lfo, ce->vib_rate);
-	} else {
-		if (note && ce->vib_note) {
-			RESET_PER(VIBRATO);
-			ce->vib_note = 0;
-		}
+		libxmp_far_update_vibrato(&xc->vibrato.lfo, ce->vib_rate, me->vib_depth);
 	}
 
 	if (update_tempo)
