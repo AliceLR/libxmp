@@ -79,7 +79,7 @@ int libxmp_far_translate_tempo(int mode, int fine_change, int coarse,
 			tempo <<= 1;
 			speed++;
 		}
-		if (speed > 2)
+		if (speed >= 2)
 			speed++;
 		speed += 3;
 		bpm = tempo;
@@ -118,20 +118,21 @@ static void libxmp_far_update_vibrato(struct lfo *lfo, int rate, int depth)
 	if (depth != 0)
 		libxmp_lfo_set_depth(lfo, depth << 2);
 
-	/* This is a little bit slower than FAR vibrato,
-	 * but faster sounds bad in libxmp. */
 	if (rate != 0)
-		libxmp_lfo_set_rate(lfo, rate << 1);
+		libxmp_lfo_set_rate(lfo, rate * 3);
+	else
+		libxmp_lfo_set_phase(lfo, 0);
 }
 
 
 void libxmp_far_play_extras(struct context_data *ctx, struct channel_data *xc, int chn)
 {
 	struct far_module_extras *me = FAR_MODULE_EXTRAS(ctx->m);
+	struct far_channel_extras *ce = FAR_CHANNEL_EXTRAS(*xc);
 
 	/* FAR vibrato depth is global, even though rate isn't. This might have
 	 * been changed by a different channel, so make sure it's applied. */
-	libxmp_far_update_vibrato(&xc->vibrato.lfo, 0, me->vib_depth);
+	libxmp_far_update_vibrato(&xc->vibrato.lfo, ce->vib_rate, me->vib_depth);
 }
 
 int libxmp_far_new_channel_extras(struct channel_data *xc)
