@@ -59,7 +59,7 @@
 #define FX_F_NSLIDE_DN	0x75
 #define FX_F_NSLIDE_UP	0x76
 
-/* Persistent effects -- for FNK and FAR */
+/* Persistent effects -- for FNK */
 #define FX_PER_PORTA_DN	0x78
 #define FX_PER_PORTA_UP	0x79
 #define FX_PER_TPORTA	0x7a
@@ -76,16 +76,18 @@
 #define FX_669_FINETUNE	0x63
 #define FX_669_VIBRATO	0x64
 
-/* FAR effects. */
-#define FX_FAR_TPORTA	0x65 /* FAR persistent tone portamento */
-#define FX_FAR_TEMPO	0x66 /* FAR coarse tempo and tempo mode */
-#define FX_FAR_F_TEMPO	0x67 /* FAR fine tempo slide up/down */
-#define FX_FAR_VIB_DEPTH 0x68 /* FAR set vibrato depth */
-#define FX_FAR_VIBRATO	0x69 /* FAR persistent vibrato */
-#define FX_FAR_SLIDEVOL 0x6a /* FAR persistent slide-to-volume */
+/* FAR effects */
+#define FX_FAR_PORTA_UP 0x65 /* FAR pitch offset up */
+#define FX_FAR_PORTA_DN 0x66 /* FAR pitch offset down */
+#define FX_FAR_TPORTA	0x67 /* FAR persistent tone portamento */
+#define FX_FAR_TEMPO	0x68 /* FAR coarse tempo and tempo mode */
+#define FX_FAR_F_TEMPO	0x69 /* FAR fine tempo slide up/down */
+#define FX_FAR_VIB_DEPTH 0x6a /* FAR set vibrato depth */
+#define FX_FAR_VIBRATO	0x6b /* FAR persistent vibrato */
+#define FX_FAR_SLIDEVOL 0x6c /* FAR persistent slide-to-volume */
 
 /* Other frequency based effects (ULT, etc) */
-#define FX_ULT_TPORTA   0x6b
+#define FX_ULT_TPORTA   0x6f
 #endif
 
 #ifndef LIBXMP_CORE_DISABLE_IT

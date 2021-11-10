@@ -116,7 +116,7 @@ static void libxmp_far_update_tempo(struct context_data *ctx, int fine_change)
 static void libxmp_far_update_vibrato(struct lfo *lfo, int rate, int depth)
 {
 	if (depth != 0)
-		libxmp_lfo_set_depth(lfo, depth << 2);
+		libxmp_lfo_set_depth(lfo, GUS_FREQUENCY_STEPS(depth << 1));
 
 	if (rate != 0)
 		libxmp_lfo_set_rate(lfo, rate * 3);
@@ -182,6 +182,16 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 
 	/* Effects here multiplexed to reduce the number of used effect numbers. */
 	switch (fxt) {
+	case FX_FAR_PORTA_UP:		/* FAR pitch offset up */
+		SET(FINE_BEND);
+		xc->freq.fslide = GUS_FREQUENCY_STEPS(fxp << 2);
+		break;
+
+	case FX_FAR_PORTA_DN:		/* FAR pitch offset down */
+		SET(FINE_BEND);
+		xc->freq.fslide = -GUS_FREQUENCY_STEPS(fxp << 2);
+		break;
+
 	case FX_FAR_VIB_DEPTH:		/* FAR set vibrato depth */
 		me->vib_depth = LSN(fxp);
 		update_vibrato = 1;

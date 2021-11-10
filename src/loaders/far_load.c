@@ -118,12 +118,12 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param, int
 		}
 		break;
 	case 0x1:		/* 0x1?  Pitch offset up */
-		event->fxt = FX_EXTENDED;
-		event->fxp = (EX_F_PORTA_UP << 4) | param;
+		event->fxt = FX_FAR_PORTA_UP;
+		event->fxp = param;
 		break;
 	case 0x2:		/* 0x2?  Pitch offset down */
-		event->fxt = FX_EXTENDED;
-		event->fxp = (EX_F_PORTA_DN << 4) | param;
+		event->fxt = FX_FAR_PORTA_DN;
+		event->fxp = param;
 		break;
 	case 0x3:		/* 0x3?  Note-port */
 		event->fxt = FX_FAR_TPORTA;
@@ -282,8 +282,10 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     m->time_factor = FAR_TIME_FACTOR;
     libxmp_far_translate_tempo(1, 0, me->coarse_tempo, &me->fine_tempo, &mod->spd, &mod->bpm);
 
-    /* QUIRK_VIBINV because vibrato is added to frequency, not period */
-    m->quirk |= QUIRK_VSALL | QUIRK_PBALL | QUIRK_VIBALL | QUIRK_VIBINV;
+    m->period_type = PERIOD_CSPD;
+    m->c4rate = C4_NTSC_RATE;
+
+    m->quirk |= QUIRK_VSALL | QUIRK_PBALL | QUIRK_VIBALL;
 
     strncpy(mod->name, (char *)ffh.name, 40);
     libxmp_set_type(m, "Farandole Composer %d.%d", MSN(ffh.version), LSN(ffh.version));
