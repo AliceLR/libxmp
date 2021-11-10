@@ -66,9 +66,17 @@ int libxmp_far_translate_tempo(int mode, int fine_change, int coarse,
 
 	/* Thought that was bad enough? Apparently Daniel Potter didn't... */
 	if (mode == 1) {
-		/* "New" FAR tempo */
+		/* "New" FAR tempo
+		 * Note that negative values are possible in Farandole Composer
+		 * via changing fine tempo and then slowing coarse tempo.
+		 * These result in very slow final tempos due to signed to
+		 * unsigned conversion. Zero should just be ignored entirely. */
 		int tempo = far_tempos[coarse] + *fine;
-		int divisor = 1197255 / tempo;
+		uint32 divisor;
+		if (tempo == 0)
+			return -1;
+
+		divisor = 1197255 / tempo;
 
 		/* Coincidentally(?), the "new" FAR tempo algorithm actually
 		 * prevents the BPM from dropping too far under XMP_MIN_BPM,
