@@ -103,8 +103,8 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param, int
 			/* These control volume ramping and can be ignored. */
 			break;
 		case 0x3:	/* 0x03  Fulfill loop */
-			/* FIXME: this should actually allow the loop to finish
-			 * before stopping. */
+			/* This is intended to be sustain release, but the
+			 * effect is buggy and just cuts most of the time. */
 			event->fxt = FX_KEYOFF;
 			break;
 		case 0x4:	/* 0x04  Old FAR tempo */
