@@ -27,6 +27,11 @@
 #include "period.h"
 #include "far_extras.h"
 
+/* tempo[0] = 256; tempo[i] = floor(128 / i). */
+static const int far_tempos[16] =
+{
+	256, 128, 64, 42, 32, 25, 21, 18, 16, 14, 12, 11, 10, 9, 9, 8
+};
 
 /**
  * FAR tempo has some unusual requirements that don't really match any other
@@ -47,11 +52,6 @@
 int libxmp_far_translate_tempo(int mode, int fine_change, int coarse,
 			       int *fine, int *_speed, int *_bpm)
 {
-	/* tempo[0] = 256; tempo[i] = floor(128 / i). */
-	static const int far_tempos[16] =
-	{
-		256, 128, 64, 42, 32, 25, 21, 18, 16, 14, 12, 11, 10, 9, 9, 8
-	};
 	int speed, bpm;
 
 	if (coarse < 0 || coarse > 15 || mode < 0 || mode > 1)
@@ -90,10 +90,16 @@ int libxmp_far_translate_tempo(int mode, int fine_change, int coarse,
 		if (speed >= 2)
 			speed++;
 		speed += 3;
+		/* Add an extra tick because the FAR replayer checks the tick
+		 * remaining count before decrementing it but after handling
+		 * each tick, i.e. a count of "3" executes 4 ticks. */
+		speed++;
 		bpm = tempo;
 	} else {
 		/* "Old" FAR tempo
-		 * This runs into the XMP_MIN_BPM limit, but nothing uses it anyway. */
+		 * This runs into the XMP_MIN_BPM limit, but nothing uses it anyway.
+		 * Old tempo mode in the original FAR replayer has 32 ticks,
+		 * but ignores all except every 8th. */
 		speed = 16;
 		bpm = (far_tempos[coarse] + *fine * 2) << 2;
 	}
@@ -130,6 +136,25 @@ static void libxmp_far_update_vibrato(struct lfo *lfo, int rate, int depth)
 		libxmp_lfo_set_rate(lfo, rate * 3);
 	else
 		libxmp_lfo_set_phase(lfo, 0);
+}
+
+/* Convoluted algorithm for delay times for retrigger and note offset effects. */
+static int libxmp_far_retrigger_delay(struct far_module_extras *me, int param)
+{
+	int delay;
+	if (me->coarse_tempo < 0 || me->coarse_tempo > 15 || param < 1)
+		return -1;
+
+	delay = (far_tempos[me->coarse_tempo] + me->fine_tempo) / param;
+
+	if (me->tempo_mode) {
+		/* Effects divide by 4, timer increments by 2 => 1/8. */
+		return delay >> 3;
+	} else {
+		/* Effects divide by 2, timer increments by 2 => 1/4,
+		 * old tempo mode handles every 8th (4th) tick => *4. */
+		return (delay >> 2) << 2;
+	}
 }
 
 
@@ -187,6 +212,7 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 	int update_tempo = 0;
 	int update_vibrato = 0;
 	int fine_change = 0;
+	int delay;
 
 	/* Effects here multiplexed to reduce the number of used effect numbers. */
 	switch (fxt) {
@@ -200,7 +226,7 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 		xc->freq.fslide = -GUS_FREQUENCY_STEPS(fxp << 2);
 		break;
 
-	case FX_FAR_VIB_DEPTH:		/* FAR set vibrato depth */
+	case FX_FAR_VIBDEPTH:		/* FAR set vibrato depth */
 		me->vib_depth = LSN(fxp);
 		update_vibrato = 1;
 		break;
@@ -211,6 +237,35 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 			ce->vib_sustain = MSN(fxp);
 		ce->vib_rate = LSN(fxp);
 		update_vibrato = 1;
+		break;
+
+	case FX_FAR_RETRIG:		/* FAR retrigger */
+		/* Retrigger note param times at intervals that roughly
+		 * evenly divide the row. */
+		delay = libxmp_far_retrigger_delay(me, fxp);
+		if (note && fxp > 1 && delay >= 0 && delay <= ctx->p.speed) {
+			SET(RETRIG);
+			xc->retrig.val = delay ? delay : 1;
+			xc->retrig.count = delay + 1;
+			xc->retrig.type = 0;
+			xc->retrig.max = fxp - 1;
+		}
+		break;
+
+	case FX_FAR_DELAY:		/* FAR note offset */
+		/* A better effect name would probably be "retrigger once".
+		 * The description/intent seems to be that this is a delay
+		 * effect, but an initial note always plays as well. The second
+		 * note always plays on the (param)th tick due to player quirks,
+		 * but it's supposed to be derived similar to retrigger. */
+		if (note && fxp >= 1) {
+			delay = me->tempo_mode ? fxp : fxp << 2;
+			SET(RETRIG);
+			xc->retrig.val = delay;
+			xc->retrig.count = delay + 1;
+			xc->retrig.type = 0;
+			xc->retrig.max = 1;
+		}
 		break;
 
 	case FX_FAR_TEMPO:		/* FAR coarse tempo and tempo mode */

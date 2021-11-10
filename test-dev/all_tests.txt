@@ -112,6 +112,7 @@ test_loader_dsmi_vol
 test_loader_dtm
 test_loader_emod
 test_loader_far
+test_loader_far_fx
 test_loader_flt
 test_loader_flt8
 test_loader_fnk

@@ -1306,9 +1306,15 @@ static void play_channel(struct context_data *ctx, int chn)
 			xc->volume += rval[xc->retrig.type].s;
 			xc->volume *= rval[xc->retrig.type].m;
 			xc->volume /= rval[xc->retrig.type].d;
-                	xc->retrig.count = LSN(xc->retrig.val);
+			xc->retrig.count = LSN(xc->retrig.val);
+
+			if (xc->retrig.max > 0) {
+				--xc->retrig.max;
+				if (xc->retrig.max == 0)
+					RESET(RETRIG);
+			}
 		}
-        }
+	}
 
 	/* Do keyoff */
 	if (xc->keyoff) {

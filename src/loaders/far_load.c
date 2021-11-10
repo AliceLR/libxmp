@@ -130,11 +130,11 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param, int
 		event->fxp = param;
 		break;
 	case 0x4:			/* 0x4?  Retrigger */
-		event->fxt = FX_EXTENDED;
-		event->fxp = (EX_RETRIG << 4) | param;
+		event->fxt = FX_FAR_RETRIG;
+		event->fxp = param;
 		break;
 	case 0x5:			/* 0x5?  Set Vibrato depth */
-		event->fxt = FX_FAR_VIB_DEPTH;
+		event->fxt = FX_FAR_VIBDEPTH;
 		event->fxp = param;
 		break;
 	case 0x6:			/* 0x6?  Vibrato note */
@@ -165,8 +165,8 @@ static void far_translate_effect(struct xmp_event *event, int fx, int param, int
 		event->fxp = (param << 4) | param;
 		break;
 	case 0xc:			/* 0xc?  Note Offset */
-		event->fxt = FX_EXTENDED;
-		event->fxp = (EX_DELAY << 4) | param;
+		event->fxt = FX_FAR_DELAY;
+		event->fxp = param;
 		break;
 	case 0xd:			/* 0xd?  Fine tempo down */
 		event->fxt = FX_FAR_F_TEMPO;
