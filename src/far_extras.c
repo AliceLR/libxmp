@@ -27,6 +27,30 @@
 #include "period.h"
 #include "far_extras.h"
 
+/**
+ * The time factor needed to directly use FAR tempos is a little unintuitive.
+ *
+ * Generally: FAR tries to run 32/[coarse tempo] rows per second, which
+ * (usually, but not always) are subdivided into 4 "ticks". To achieve
+ * this, it measures tempos in the number of ticks that should play per second
+ * (see far_tempos below). Fine tempo is added or subtracted from this number.
+ * To time these ticks, FAR uses the programmable interval timer (PIT) to run a
+ * player interrupt.
+ *
+ * libxmp effectively uses a calculation of 10.0 * 0.25 / BPM to get the tick
+ * duration in seconds. A base time factor of 4.0 makes this 1 / BPM, turning
+ * BPM into the ticks/sec measure that FAR uses. This isn't completely
+ * accurate to FAR, though.
+ *
+ * The x86 PIT runs at a rate of 1193182 Hz, but FAR does something strange
+ * when calculating PIT divisors and uses a constant of 1197255 Hz instead.
+ * This means FAR tempo is slightly slower by a factor of around:
+ *
+ * floor(1197255 / 32) / floor(1193182 / 32) ~= 1.003439
+ *
+ * This still isn't perfect, but it gets the playback rate fairly close.
+ */
+
 /* tempo[0] = 256; tempo[i] = floor(128 / i). */
 static const int far_tempos[16] =
 {
