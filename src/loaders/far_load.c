@@ -361,6 +361,17 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     }
     free(patbuf);
 
+    /* Allocate tracks for any patterns referenced with a size of 0. These
+     * use the configured pattern break position, which is 64 by default. */
+    for (i = 0; i < mod->len; i++) {
+	int pat = mod->xxo[i];
+	if (mod->xxp[pat]->rows == 0) {
+	    mod->xxp[pat]->rows = 64;
+	    if (libxmp_alloc_tracks_in_pattern(mod, pat) < 0)
+		return -1;
+	}
+    }
+
     mod->ins = -1;
     if (hio_read(sample_map, 1, 8, f) < 8) {
 	D_(D_CRIT "read error at sample map");
