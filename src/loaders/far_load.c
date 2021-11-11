@@ -221,6 +221,7 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     struct far_header ffh;
     struct far_header2 ffh2;
     struct far_instrument fih;
+    uint8 *patbuf = NULL;
     uint8 sample_map[8];
 
     LOAD_INIT();
@@ -299,12 +300,16 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     D_(D_INFO "Comment bytes  : %d", ffh.textlen);
     D_(D_INFO "Stored patterns: %d", mod->pat);
 
+    if ((patbuf = malloc(256 * 16 * 4)) == NULL)
+	return -1;
+
     for (i = 0; i < mod->pat; i++) {
 	uint8 brk, note, ins, vol, fxb;
+	uint8 *pos;
 	int rows;
 
 	if (libxmp_alloc_pattern(mod, i) < 0)
-	    return -1;
+	    goto err;
 
 	if (!ffh2.patsize[i])
 	    continue;
@@ -313,34 +318,34 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
 	/* Sanity check */
 	if (rows <= 0 || rows > 256) {
-	    return -1;
+	    goto err;
 	}
 
 	mod->xxp[i]->rows = rows;
 
 	if (libxmp_alloc_tracks_in_pattern(mod, i) < 0)
-	    return -1;
+	    goto err;
 
 	brk = hio_read8(f) + 1;
 	hio_read8(f);
 
+	if (hio_read(patbuf, ffh2.patsize[i] - 2, 1, f) < 1) {
+	    D_(D_CRIT "read error at pat %d", i);
+	    goto err;
+	}
+
+	pos = patbuf;
 	for (j = 0; j < mod->xxp[i]->rows; j++) {
 	    for (k = 0; k < mod->chn; k++) {
-		uint8 ev[4];
 		event = &EVENT(i, k, j);
 
 		if (k == 0 && j == brk)
 		    event->f2t = FX_BREAK;
 
-		if (hio_read(ev, 1, 4, f) < 4) {
-			D_(D_CRIT "read error at pat %d", i);
-			return -1;
-		}
-
-		note = ev[0];
-		ins = ev[1];
-		vol = ev[2];
-		fxb = ev[3];
+		note = *pos++;
+		ins  = *pos++;
+		vol  = *pos++;
+		fxb  = *pos++;
 
 		if (note)
 		    event->note = note + 48;
@@ -354,6 +359,7 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	    }
 	}
     }
+    free(patbuf);
 
     mod->ins = -1;
     if (hio_read(sample_map, 1, 8, f) < 8) {
@@ -427,4 +433,8 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     m->volbase = 0xf0;
 
     return 0;
+
+  err:
+    free(patbuf);
+    return -1;
 }
