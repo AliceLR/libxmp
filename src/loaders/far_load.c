@@ -239,7 +239,7 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     ffh.textlen = hio_read16l(f);	/* Length of embedded text */
 
     /* Sanity check */
-    if (ffh.tempo == 0) {
+    if (ffh.tempo >= 16) {
 	return -1;
     }
 

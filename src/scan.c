@@ -103,6 +103,7 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
     far_tempo_mode = 1;
 
     if (HAS_FAR_MODULE_EXTRAS(ctx->m)) {
+	far_tempo_coarse = FAR_MODULE_EXTRAS(ctx->m)->coarse_tempo;
 	libxmp_far_translate_tempo(far_tempo_mode, 0, far_tempo_coarse,
 				   &far_tempo_fine, &speed, &bpm);
     }
