@@ -172,12 +172,12 @@ static int libxmp_far_retrigger_delay(struct far_module_extras *me, int param)
 	delay = (far_tempos[me->coarse_tempo] + me->fine_tempo) / param;
 
 	if (me->tempo_mode) {
-		/* Effects divide by 4, timer increments by 2 => 1/8. */
-		return delay >> 3;
+		/* Effects divide by 4, timer increments by 2 (round up). */
+		return ((delay >> 2) + 1) >> 1;
 	} else {
-		/* Effects divide by 2, timer increments by 2 => 1/4,
-		 * old tempo mode handles every 8th (4th) tick => *4. */
-		return (delay >> 2) << 2;
+		/* Effects divide by 2, timer increments by 2 (round up).
+		 * Old tempo mode handles every 8th (4th) tick => *4. */
+		return (((delay >> 1) + 1) >> 1) << 2;
 	}
 }
 
@@ -238,15 +238,21 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 	int fine_change = 0;
 	int delay;
 
-	/* Effects here multiplexed to reduce the number of used effect numbers. */
+	/* Effects here multiplexed to reduce the number of used effect numbers.
+	 *
+	 * Misc. notes: FAR pitch offset effects can overflow/underflow GUS
+	 * frequency, which isn't supported by libxmp (Haj/before.far).
+	 */
 	switch (fxt) {
 	case FX_FAR_PORTA_UP:		/* FAR pitch offset up */
 		SET(FINE_BEND);
+		RESET_PER(TONEPORTA);
 		xc->freq.fslide = GUS_FREQUENCY_STEPS(fxp << 2);
 		break;
 
 	case FX_FAR_PORTA_DN:		/* FAR pitch offset down */
 		SET(FINE_BEND);
+		RESET_PER(TONEPORTA);
 		xc->freq.fslide = -GUS_FREQUENCY_STEPS(fxp << 2);
 		break;
 
