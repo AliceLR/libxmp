@@ -270,6 +270,11 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	if (ffh2.patsize[i])
 	    mod->pat = i + 1;
     }
+    /* Make sure referenced zero-sized patterns are also counted. */
+    for (i = 0; i < mod->len; i++) {
+	if (mod->pat <= mod->xxo[i])
+	    mod->pat = mod->xxo[i] + 1;
+    }
 
     mod->trk = mod->chn * mod->pat;
 
