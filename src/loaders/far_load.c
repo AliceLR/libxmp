@@ -264,6 +264,7 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
     mod->chn = 16;
     /*mod->pat=ffh2.patterns; (Error in specs? --claudio) */
     mod->len = ffh2.songlen;
+    mod->rst = ffh2.restart;
     memcpy (mod->xxo, ffh2.order, mod->len);
 
     for (mod->pat = i = 0; i < 256; i++) {
