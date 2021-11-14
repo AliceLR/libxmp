@@ -270,9 +270,6 @@ int libxmp_snprintf (char *, size_t, const char *, ...);
 
 #define IS_AMIGA_MOD()	(IS_PLAYER_MODE_MOD() && IS_PERIOD_MODRNG())
 
-/* Gravis Ultrasound frequency increments in steps of 36318/1024. */
-#define GUS_FREQUENCY_STEPS(x)	(((x) * 36318) >> 10)
-
 struct ord_data {
 	int speed;
 	int bpm;

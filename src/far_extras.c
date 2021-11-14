@@ -27,6 +27,8 @@
 #include "period.h"
 #include "far_extras.h"
 
+#define FAR_GUS_CHANNELS 17
+
 /**
  * The time factor needed to directly use FAR tempos is a little unintuitive.
  *
@@ -154,7 +156,7 @@ static void libxmp_far_update_tempo(struct context_data *ctx, int fine_change)
 static void libxmp_far_update_vibrato(struct lfo *lfo, int rate, int depth)
 {
 	if (depth != 0)
-		libxmp_lfo_set_depth(lfo, GUS_FREQUENCY_STEPS(depth << 1));
+		libxmp_lfo_set_depth(lfo, libxmp_gus_frequency_steps(depth << 1, FAR_GUS_CHANNELS));
 
 	if (rate != 0)
 		libxmp_lfo_set_rate(lfo, rate * 3);
@@ -247,13 +249,13 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 	case FX_FAR_PORTA_UP:		/* FAR pitch offset up */
 		SET(FINE_BEND);
 		RESET_PER(TONEPORTA);
-		xc->freq.fslide = GUS_FREQUENCY_STEPS(fxp << 2);
+		xc->freq.fslide = libxmp_gus_frequency_steps(fxp << 2, FAR_GUS_CHANNELS);
 		break;
 
 	case FX_FAR_PORTA_DN:		/* FAR pitch offset down */
 		SET(FINE_BEND);
 		RESET_PER(TONEPORTA);
-		xc->freq.fslide = -GUS_FREQUENCY_STEPS(fxp << 2);
+		xc->freq.fslide = -libxmp_gus_frequency_steps(fxp << 2, FAR_GUS_CHANNELS);
 		break;
 
 	case FX_FAR_VIBDEPTH:		/* FAR set vibrato depth */
