@@ -27,7 +27,8 @@
 #include "period.h"
 #include "far_extras.h"
 
-#define FAR_GUS_CHANNELS 17
+#define FAR_GUS_CHANNELS	17
+#define FAR_OLD_TEMPO_SHIFT	2 /* Power of multiplier for old tempo mode. */
 
 /**
  * The time factor needed to directly use FAR tempos is a little unintuitive.
@@ -126,8 +127,8 @@ int libxmp_far_translate_tempo(int mode, int fine_change, int coarse,
 		 * This runs into the XMP_MIN_BPM limit, but nothing uses it anyway.
 		 * Old tempo mode in the original FAR replayer has 32 ticks,
 		 * but ignores all except every 8th. */
-		speed = 16;
-		bpm = (far_tempos[coarse] + *fine * 2) << 2;
+		speed = 4 << FAR_OLD_TEMPO_SHIFT;
+		bpm = (far_tempos[coarse] + *fine * 2) << FAR_OLD_TEMPO_SHIFT;
 	}
 
 	if (bpm < XMP_MIN_BPM)
@@ -178,8 +179,14 @@ static int libxmp_far_retrigger_delay(struct far_module_extras *me, int param)
 		return ((delay >> 2) + 1) >> 1;
 	} else {
 		/* Effects divide by 2, timer increments by 2 (round up).
-		 * Old tempo mode handles every 8th (4th) tick => *4. */
-		return (((delay >> 1) + 1) >> 1) << 2;
+		 * Old tempo mode handles every 8th tick => *(1 << FAR_OLD_TEMPO_SHIFT).
+		 * Delay values >4 result in no retrigger. */
+		delay = (((delay >> 1) + 1) >> 1) << FAR_OLD_TEMPO_SHIFT;
+		if (delay >= 16)
+			return -1;
+		if (delay < (1 << FAR_OLD_TEMPO_SHIFT))
+			return (1 << FAR_OLD_TEMPO_SHIFT);
+		return delay;
 	}
 }
 
@@ -291,7 +298,7 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 		 * note always plays on the (param)th tick due to player quirks,
 		 * but it's supposed to be derived similar to retrigger. */
 		if (note && fxp >= 1) {
-			delay = me->tempo_mode ? fxp : fxp << 2;
+			delay = me->tempo_mode ? fxp : fxp << FAR_OLD_TEMPO_SHIFT;
 			SET(RETRIG);
 			xc->retrig.val = delay;
 			xc->retrig.count = delay + 1;
