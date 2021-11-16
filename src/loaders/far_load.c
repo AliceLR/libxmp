@@ -454,6 +454,12 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		return -1;
     }
 
+    /* Panning map */
+    for (i = 0; i < 16; i++) {
+	if (ffh.pan[i] < 0x10)
+	    mod->xxc[i].pan = (ffh.pan[i] << 4) | ffh.pan[i];
+    }
+
     m->volbase = 0xf0;
 
     return 0;
