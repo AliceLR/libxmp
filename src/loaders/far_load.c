@@ -261,6 +261,13 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
         return -1;
     }
 
+    /* Skip unsupported header extension if it exists. The documentation claims
+     * this field is the "remaining" header size, but it's the total size. */
+    if (ffh.headersize > 869 + ffh.textlen) {
+	if (hio_seek(f, ffh.headersize, SEEK_SET))
+	    return -1;
+    }
+
     mod->chn = 16;
     /*mod->pat=ffh2.patterns; (Error in specs? --claudio) */
     mod->len = ffh2.songlen;
