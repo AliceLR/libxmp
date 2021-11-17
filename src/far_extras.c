@@ -235,6 +235,7 @@ void libxmp_far_release_module_extras(struct module_data *m)
 void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data *xc,
 			   int chn, uint8 note, uint8 fxt, uint8 fxp, int fnum)
 {
+	struct xmp_module *mod = &ctx->m.mod;
 	struct far_module_extras *me = FAR_MODULE_EXTRAS(ctx->m);
 	struct far_channel_extras *ce = FAR_CHANNEL_EXTRAS(*xc);
 	int update_tempo = 0;
@@ -258,6 +259,49 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 		SET(FINE_BEND);
 		RESET_PER(TONEPORTA);
 		xc->freq.fslide = -libxmp_gus_frequency_steps(fxp << 2, FAR_GUS_CHANNELS);
+		break;
+
+	case FX_FAR_TPORTA:		/* FAR persistent tone portamento */
+		/* Despite what the tracker claims, this effect scales bizarrely
+		 * with tempo and only corresponds to (param) rows at tempo 4.
+		 * See FORMATS.DOC. */
+		if (IS_VALID_INSTRUMENT(xc->ins)) {
+			int tempo = far_tempos[me->coarse_tempo] + me->fine_tempo;
+			int32 diff, rate, step;
+
+			SET_PER(TONEPORTA);
+			if (note >= 1 && note <= 0x80) {
+				xc->porta.target = libxmp_note_to_period(ctx, note - 1, xc->finetune, xc->per_adj);
+			}
+			xc->porta.dir = xc->period < xc->porta.target ? 1 : -1;
+
+			rate = tempo * (fxp ? fxp : 1);
+			diff = xc->porta.target - xc->period;
+			step = (diff > 0 ? diff : -diff) * 8 / (rate > 0 ? rate : 1);
+
+			xc->porta.slide = (step > 0) ? step : 1;
+		}
+		break;
+
+	case FX_FAR_SLIDEVOL:		/* FAR persistent slide-to-volume */
+		/* Despite what the tracker claims, this effect scales bizarrely
+		 * with tempo and corresponds to (param/2) rows at tempo 4.
+		 * See FORMATS.DOC. */
+		{
+			int tempo = far_tempos[me->coarse_tempo] + me->fine_tempo;
+			int target = MSN(fxp) << 4;
+			int32 diff, rate, step;
+
+			rate = tempo * (LSN(fxp) ? LSN(fxp) : 1);
+			diff = target - xc->volume;
+			step = diff * 16 / (rate > 0 ? rate : 1);
+			if (step == 0)
+				step = (diff > 0) ? 1 : -1;
+
+			SET_PER(VOL_SLIDE);
+			xc->vol.slide = step;
+			xc->vol.target = target + 1;
+		}
 		break;
 
 	case FX_FAR_VIBDEPTH:		/* FAR set vibrato depth */
