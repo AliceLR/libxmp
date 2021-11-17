@@ -456,6 +456,8 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
     /* Panning map */
     for (i = 0; i < 16; i++) {
+	if (ffh.ch_on[i] == 0)
+	    mod->xxc[i].flg |= XMP_CHANNEL_MUTE;
 	if (ffh.pan[i] < 0x10)
 	    mod->xxc[i].pan = (ffh.pan[i] << 4) | ffh.pan[i];
     }
