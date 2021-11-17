@@ -342,7 +342,7 @@ static int far_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	brk = hio_read8(f) + 1;
 	hio_read8(f);
 
-	if (hio_read(patbuf, ffh2.patsize[i] - 2, 1, f) < 1) {
+	if (hio_read(patbuf, rows * 64, 1, f) < 1) {
 	    D_(D_CRIT "read error at pat %d", i);
 	    goto err;
 	}
