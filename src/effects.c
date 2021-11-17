@@ -1074,7 +1074,7 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 			do_toneporta(ctx, xc, note);
 
 			diff = xc->porta.target - xc->period;
-			rate = p->speed * fxp;
+			rate = p->speed * (fxp ? fxp : 1);
 			step = (diff > 0 ? diff : -diff) / (rate ? rate : 1);
 
 			xc->porta.slide = (step > 0) ? step : 1;
@@ -1084,7 +1084,7 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 	case FX_FAR_SLIDEVOL: {		/* FAR persistent slide-to-volume */
 			int target = MSN(fxp) << 4;
 			int diff = target - xc->volume;
-			int rate = p->speed * LSN(fxp);
+			int rate = p->speed * (LSN(fxp) ? LSN(fxp) : 1);
 			int step = diff / (rate ? rate : 1);
 			if (step == 0)
 				step = (diff > 0) ? 1 : -1;

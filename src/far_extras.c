@@ -91,7 +91,6 @@ int libxmp_far_translate_tempo(int mode, int fine_change, int coarse,
 		*fine = 100;
 	}
 
-	/* Thought that was bad enough? Apparently Daniel Potter didn't... */
 	if (mode == 1) {
 		/* "New" FAR tempo
 		 * Note that negative values are possible in Farandole Composer
@@ -156,13 +155,8 @@ static void libxmp_far_update_tempo(struct context_data *ctx, int fine_change)
 
 static void libxmp_far_update_vibrato(struct lfo *lfo, int rate, int depth)
 {
-	if (depth != 0)
-		libxmp_lfo_set_depth(lfo, libxmp_gus_frequency_steps(depth << 1, FAR_GUS_CHANNELS));
-
-	if (rate != 0)
-		libxmp_lfo_set_rate(lfo, rate * 3);
-	else
-		libxmp_lfo_set_phase(lfo, 0);
+	libxmp_lfo_set_depth(lfo, libxmp_gus_frequency_steps(depth << 1, FAR_GUS_CHANNELS));
+	libxmp_lfo_set_rate(lfo, rate * 3);
 }
 
 /* Convoluted algorithm for delay times for retrigger and note offset effects. */
@@ -198,7 +192,8 @@ void libxmp_far_play_extras(struct context_data *ctx, struct channel_data *xc, i
 
 	/* FAR vibrato depth is global, even though rate isn't. This might have
 	 * been changed by a different channel, so make sure it's applied. */
-	libxmp_far_update_vibrato(&xc->vibrato.lfo, ce->vib_rate, me->vib_depth);
+	if (TEST(VIBRATO) || TEST_PER(VIBRATO))
+		libxmp_far_update_vibrato(&xc->vibrato.lfo, ce->vib_rate, me->vib_depth);
 }
 
 int libxmp_far_new_channel_extras(struct channel_data *xc)
@@ -272,15 +267,18 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 
 	case FX_FAR_VIBRATO:		/* FAR vibrato */
 		/* With active sustain, regular vibrato only sets the rate. */
-		if (ce->vib_sustain == 0)
+		if (ce->vib_sustain == 0) {
 			ce->vib_sustain = MSN(fxp);
+			if (ce->vib_sustain == 0)
+				SET(VIBRATO);
+		}
 		ce->vib_rate = LSN(fxp);
 		update_vibrato = 1;
 		break;
 
 	case FX_FAR_RETRIG:		/* FAR retrigger */
-		/* Retrigger note param times at intervals that roughly
-		 * evenly divide the row. */
+		/* Retrigger note param times at intervals that roughly evently
+		 * divide the row. A param of 0 crashes Farandole Composer. */
 		delay = libxmp_far_retrigger_delay(me, fxp);
 		if (note && fxp > 1 && delay >= 0 && delay <= ctx->p.speed) {
 			SET(RETRIG);
@@ -296,14 +294,15 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 		 * The description/intent seems to be that this is a delay
 		 * effect, but an initial note always plays as well. The second
 		 * note always plays on the (param)th tick due to player quirks,
-		 * but it's supposed to be derived similar to retrigger. */
-		if (note && fxp >= 1) {
+		 * but it's supposed to be derived similar to retrigger.
+		 * A param of zero works like effect 4F (bug?). */
+		if (note) {
 			delay = me->tempo_mode ? fxp : fxp << FAR_OLD_TEMPO_SHIFT;
 			SET(RETRIG);
-			xc->retrig.val = delay;
+			xc->retrig.val = delay ? delay : 1;
 			xc->retrig.count = delay + 1;
 			xc->retrig.type = 0;
-			xc->retrig.max = 1;
+			xc->retrig.max = fxp ? 1 : 0;
 		}
 		break;
 
@@ -334,8 +333,6 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 		if (ce->vib_rate != 0) {
 			if (ce->vib_sustain)
 				SET_PER(VIBRATO);
-			else
-				SET(VIBRATO);
 		} else {
 			RESET_PER(VIBRATO);
 			ce->vib_sustain = 0;

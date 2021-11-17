@@ -10,7 +10,7 @@ TEST(test_loader_far_fx)
 	f = fopen("data/format_far_fx.data", "r");
 
 	opaque = xmp_create_context();
-	ret = xmp_load_module(opaque, "data/effects.far");
+	ret = xmp_load_module(opaque, "data/far_effects.far");
 	fail_unless(ret == 0, "module load");
 
 	xmp_get_module_info(opaque, &info);
