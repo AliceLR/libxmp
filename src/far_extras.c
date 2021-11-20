@@ -173,7 +173,7 @@ static int libxmp_far_retrigger_delay(struct far_module_extras *me, int param)
 		return ((delay >> 2) + 1) >> 1;
 	} else {
 		/* Effects divide by 2, timer increments by 2 (round up).
-		 * Old tempo mode handles every 8th tick => *(1 << FAR_OLD_TEMPO_SHIFT).
+		 * Old tempo mode handles every 8th tick (<< FAR_OLD_TEMPO_SHIFT).
 		 * Delay values >4 result in no retrigger. */
 		delay = (((delay >> 1) + 1) >> 1) << FAR_OLD_TEMPO_SHIFT;
 		if (delay >= 16)
@@ -241,9 +241,10 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 	int update_tempo = 0;
 	int update_vibrato = 0;
 	int fine_change = 0;
-	int delay;
+	int delay, target, tempo;
+	int32 diff, step;
 
-	/* Effects here multiplexed to reduce the number of used effect numbers.
+	/* Tempo effects and vibrato are multiplexed to reduce the effects count.
 	 *
 	 * Misc. notes: FAR pitch offset effects can overflow/underflow GUS
 	 * frequency, which isn't supported by libxmp (Haj/before.far).
@@ -261,47 +262,60 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 		xc->freq.fslide = -libxmp_gus_frequency_steps(fxp << 2, FAR_GUS_CHANNELS);
 		break;
 
+	/* Despite some claims, this effect scales with tempo and only
+	 * corresponds to (param) rows at tempo 4. See FORMATS.DOC.
+	 */
 	case FX_FAR_TPORTA:		/* FAR persistent tone portamento */
-		/* Despite what the tracker claims, this effect scales bizarrely
-		 * with tempo and only corresponds to (param) rows at tempo 4.
-		 * See FORMATS.DOC. */
-		if (IS_VALID_INSTRUMENT(xc->ins)) {
-			int tempo = far_tempos[me->coarse_tempo] + me->fine_tempo;
-			int32 diff, rate, step;
+		if (!IS_VALID_INSTRUMENT(xc->ins))
+			break;
 
-			SET_PER(TONEPORTA);
-			if (note >= 1 && note <= 0x80) {
-				xc->porta.target = libxmp_note_to_period(ctx, note - 1, xc->finetune, xc->per_adj);
-			}
-			xc->porta.dir = xc->period < xc->porta.target ? 1 : -1;
+		tempo = far_tempos[me->coarse_tempo] + me->fine_tempo;
 
-			rate = tempo * (fxp ? fxp : 1);
-			diff = xc->porta.target - xc->period;
-			step = (diff > 0 ? diff : -diff) * 8 / (rate > 0 ? rate : 1);
-
-			xc->porta.slide = (step > 0) ? step : 1;
+		SET_PER(TONEPORTA);
+		if (note >= 1 && note <= 0x80) {
+			xc->porta.target = libxmp_note_to_period(ctx, note - 1, xc->finetune, xc->per_adj);
 		}
+		xc->porta.dir = xc->period < xc->porta.target ? 1 : -1;
+
+		/* Parameter of 0 is equivalent to 1. */
+		if (fxp < 1)
+			fxp = 1;
+		/* Tempos <=0 cause crashes and other weird behavior
+		 * here in Farandole Composer, don't emulate that. */
+		if (tempo < 1)
+			tempo = 1;
+
+		diff = xc->porta.target - xc->period;
+		step = (diff > 0 ? diff : -diff) * 8 / (tempo * fxp);
+
+		xc->porta.slide = (step > 0) ? step : 1;
 		break;
 
+
+	/* Despite some claims, this effect scales with tempo and only
+	 * corresponds to (param/2) rows at tempo 4. See FORMATS.DOC.
+	 */
 	case FX_FAR_SLIDEVOL:		/* FAR persistent slide-to-volume */
-		/* Despite what the tracker claims, this effect scales bizarrely
-		 * with tempo and corresponds to (param/2) rows at tempo 4.
-		 * See FORMATS.DOC. */
-		{
-			int tempo = far_tempos[me->coarse_tempo] + me->fine_tempo;
-			int target = MSN(fxp) << 4;
-			int32 diff, rate, step;
+		tempo = far_tempos[me->coarse_tempo] + me->fine_tempo;
+		target = MSN(fxp) << 4;
+		fxp = LSN(fxp);
 
-			rate = tempo * (LSN(fxp) ? LSN(fxp) : 1);
-			diff = target - xc->volume;
-			step = diff * 16 / (rate > 0 ? rate : 1);
-			if (step == 0)
-				step = (diff > 0) ? 1 : -1;
+		/* Parameter of 0 is equivalent to 1. */
+		if (fxp < 1)
+			fxp = 1;
+		/* Tempos <=0 cause crashes and other weird behavior
+		 * here in Farandole Composer, don't emulate that. */
+		if (tempo < 1)
+			tempo = 1;
 
-			SET_PER(VOL_SLIDE);
-			xc->vol.slide = step;
-			xc->vol.target = target + 1;
-		}
+		diff = target - xc->volume;
+		step = diff * 16 / (tempo * fxp);
+		if (step == 0)
+			step = (diff > 0) ? 1 : -1;
+
+		SET_PER(VOL_SLIDE);
+		xc->vol.slide = step;
+		xc->vol.target = target + 1;
 		break;
 
 	case FX_FAR_VIBDEPTH:		/* FAR set vibrato depth */
@@ -309,9 +323,9 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 		update_vibrato = 1;
 		break;
 
-	case FX_FAR_VIBRATO:		/* FAR vibrato */
-		/* With active sustain, regular vibrato only sets the rate. */
+	case FX_FAR_VIBRATO:		/* FAR vibrato and sustained vibrato */
 		if (ce->vib_sustain == 0) {
+			/* With sustain, regular vibrato only sets the rate. */
 			ce->vib_sustain = MSN(fxp);
 			if (ce->vib_sustain == 0)
 				SET(VIBRATO);
@@ -320,33 +334,35 @@ void libxmp_far_extras_process_fx(struct context_data *ctx, struct channel_data 
 		update_vibrato = 1;
 		break;
 
+	/* Retrigger note param times at intervals that roughly evently
+	 * divide the row. A param of 0 crashes Farandole Composer.
+	 */
 	case FX_FAR_RETRIG:		/* FAR retrigger */
-		/* Retrigger note param times at intervals that roughly evently
-		 * divide the row. A param of 0 crashes Farandole Composer. */
 		delay = libxmp_far_retrigger_delay(me, fxp);
 		if (note && fxp > 1 && delay >= 0 && delay <= ctx->p.speed) {
 			SET(RETRIG);
 			xc->retrig.val = delay ? delay : 1;
 			xc->retrig.count = delay + 1;
 			xc->retrig.type = 0;
-			xc->retrig.max = fxp - 1;
+			xc->retrig.limit = fxp - 1;
 		}
 		break;
 
+	/* A better effect name would probably be "retrigger once".
+	 * The description/intent seems to be that this is a delay
+	 * effect, but an initial note always plays as well. The second
+	 * note always plays on the (param)th tick due to player quirks,
+	 * but it's supposed to be derived similar to retrigger.
+	 * A param of zero works like effect 4F (bug?).
+	 */
 	case FX_FAR_DELAY:		/* FAR note offset */
-		/* A better effect name would probably be "retrigger once".
-		 * The description/intent seems to be that this is a delay
-		 * effect, but an initial note always plays as well. The second
-		 * note always plays on the (param)th tick due to player quirks,
-		 * but it's supposed to be derived similar to retrigger.
-		 * A param of zero works like effect 4F (bug?). */
 		if (note) {
 			delay = me->tempo_mode ? fxp : fxp << FAR_OLD_TEMPO_SHIFT;
 			SET(RETRIG);
 			xc->retrig.val = delay ? delay : 1;
 			xc->retrig.count = delay + 1;
 			xc->retrig.type = 0;
-			xc->retrig.max = fxp ? 1 : 0;
+			xc->retrig.limit = fxp ? 1 : 0;
 		}
 		break;
 

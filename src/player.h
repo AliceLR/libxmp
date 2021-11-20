@@ -147,7 +147,7 @@ struct channel_data {
 		int val;	/* Retrig value */
 		int count;	/* Retrig counter */
 		int type;	/* Retrig type */
-		int max;	/* Number of retrigs */
+		int limit;	/* Number of retrigs */
 	} retrig;
 
 	struct {
