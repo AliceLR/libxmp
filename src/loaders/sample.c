@@ -362,70 +362,10 @@ int libxmp_load_sample(struct module_data *m, HIO_HANDLE *f, int flags, struct x
 	return -1;
 }
 
-/* Generate reversed sample for bidirectional looping or reverse playback. */
-void libxmp_reverse_sample(struct xmp_sample *xxs, struct extra_sample_data *xtra)
-{
-	int bytelen, extralen, size, i;
-
-	if (xtra->data_reverse)
-		return;
-
-	bytelen = xxs->len;
-	extralen = 4;
-
-	if (xxs->flg & XMP_SAMPLE_16BIT) {
-		bytelen <<= 1;
-		extralen <<= 1;
-	}
-
-	if ((xtra->data_reverse = malloc(bytelen + extralen + 4)) == NULL) {
-		/* ! :( */
-		xxs->flg &= ~(XMP_SAMPLE_LOOP_BIDIR | XMP_SAMPLE_SLOOP_BIDIR);
-		return;
-	}
-
-	*(uint32 *)xtra->data_reverse = 0;
-	xtra->data_reverse += 4;
-	size = xxs->len;
-
-	if (xxs->flg & XMP_SAMPLE_16BIT) {
-		int16 *s16 = (int16 *)xxs->data;
-		int16 *d16 = (int16 *)xtra->data_reverse;
-
-		for (i = 0; i < size; i++)
-			d16[i] = s16[size - i - 1];
-	} else {
-		int8 *s8 = (int8 *)xxs->data;
-		int8 *d8 = (int8 *)xtra->data_reverse;
-
-		for (i = 0; i < size; i++)
-			d8[i] = s8[size - i - 1];
-	}
-
-	/* Add extra samples at end */
-	if (xxs->flg & XMP_SAMPLE_16BIT) {
-		for (i = 0; i < 8; i++) {
-			xxs->data[bytelen + i] = xxs->data[bytelen - 2 + i];
-		}
-	} else {
-		for (i = 0; i < 4; i++) {
-			xxs->data[bytelen + i] = xxs->data[bytelen - 1 + i];
-		}
-	}
-}
-
 void libxmp_free_sample(struct xmp_sample *s)
 {
 	if (s->data) {
 		free(s->data - 4);
 		s->data = NULL;		/* prevent double free in PCM load error */
-	}
-}
-
-void libxmp_free_sample_extra(struct extra_sample_data *xtra)
-{
-	if (xtra->data_reverse) {
-		free(xtra->data_reverse - 4);
-		xtra->data_reverse = NULL;
 	}
 }

@@ -294,7 +294,6 @@ struct smix_data {
 
 /* This will be added to the sample structure in the next API revision */
 struct extra_sample_data {
-	unsigned char *data_reverse;
 	double c5spd;
 	int sus;
 	int sue;

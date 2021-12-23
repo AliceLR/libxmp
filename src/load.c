@@ -554,13 +554,8 @@ void xmp_release_module(xmp_context opaque)
 		mod->xxs = NULL;
 	}
 
-	if (m->xtra != NULL) {
-		for (i = 0; i < mod->smp; i++) {
-			libxmp_free_sample_extra(&m->xtra[i]);
-		}
-		free(m->xtra);
-		m->xtra = NULL;
-	}
+	free(m->xtra);
+	m->xtra = NULL;
 
 	libxmp_free_scan(ctx);
 
