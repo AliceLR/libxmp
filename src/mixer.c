@@ -415,10 +415,11 @@ static int has_active_loop(struct context_data *ctx, struct mixer_voice *vi,
 	return (xxs->flg & XMP_SAMPLE_LOOP) || has_active_sustain_loop(ctx, vi, xxs);
 }
 
-/* Update the voice endpoint and pointer based on current sample loop state. */
+/* Update the voice endpoints based on current sample loop state. */
 static void adjust_voice(struct context_data *ctx, struct mixer_voice *vi,
 			 struct xmp_sample *xxs, struct extra_sample_data *xtra)
 {
+	/* TODO this flag should probably be set elsewhere. */
 	vi->flags &= ~VOICE_BIDIR;
 
 	if (xtra && has_active_sustain_loop(ctx, vi, xxs)) {
@@ -458,10 +459,10 @@ static int loop_reposition(struct context_data *ctx, struct mixer_voice *vi,
 		vi->pos -= vi->end - vi->start;
 	} else {
 		/* Bidirectional loop: switch directions */
-		vi->flags ^= VOICE_LOOP_REV;
+		vi->flags ^= VOICE_REVERSE;
 
 		/* Wrap voice position around endpoint */
-		if (vi->flags & VOICE_LOOP_REV) {
+		if (vi->flags & VOICE_REVERSE) {
 			vi->pos = vi->end * 2.0 - vi->pos;
 		} else {
 			vi->pos = vi->start * 2.0 - vi->pos;
@@ -612,7 +613,7 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 
 			/* How many samples we can write before the loop break
 			 * or sample end... */
-			if (~vi->flags & VOICE_LOOP_REV) {
+			if (~vi->flags & VOICE_REVERSE) {
 				if (vi->pos >= vi->end) {
 					samples = 0;
 					usmp = 1;
@@ -834,7 +835,7 @@ void libxmp_mixer_setpatch(struct context_data *ctx, int voc, int smp, int ac)
 	vi->smp = smp;
 	vi->vol = 0;
 	vi->pan = 0;
-	vi->flags &= ~(SAMPLE_LOOP | VOICE_LOOP_REV | VOICE_BIDIR);
+	vi->flags &= ~(SAMPLE_LOOP | VOICE_REVERSE | VOICE_BIDIR);
 
 	vi->fidx = 0;
 
