@@ -313,57 +313,35 @@ static void init_sample_wraparound(struct mixer_data *s, struct loop_data *ld,
 
 	bidir = vi->flags & VOICE_BIDIR;
 
-	if (bidir && ld->_16bit) {
+	if (ld->_16bit) {
 		uint16 *start = (uint16 *)vi->sptr + vi->start;
 		uint16 *end = (uint16 *)vi->sptr + vi->end;
+
 		if (!ld->first_loop) {
 			for (i = 0; i < LOOP_PROLOGUE; i++) {
-				ld->prologue[i] = start[i - LOOP_PROLOGUE];
-				start[i - LOOP_PROLOGUE] = start[LOOP_PROLOGUE - 1 - i];
+				int j = i - LOOP_PROLOGUE;
+				ld->prologue[i] = start[j];
+				start[j] = bidir ? start[-1 - j] : end[j];
 			}
 		}
 		for (i = 0; i < LOOP_EPILOGUE; i++) {
 			ld->epilogue[i] = end[i];
-			end[i] = end[-1 - i];
-		}
-	} else if (bidir) {
-		uint8 *start = (uint8 *)vi->sptr + vi->start;
-		uint8 *end = (uint8 *)vi->sptr + vi->end;
-		if (!ld->first_loop) {
-			for (i = 0; i < LOOP_PROLOGUE; i++) {
-				ld->prologue[i] = start[i - LOOP_PROLOGUE];
-				start[i - LOOP_PROLOGUE] = start[LOOP_PROLOGUE - 1 - i];
-			}
-		}
-		for (i = 0; i < LOOP_EPILOGUE; i++) {
-			ld->epilogue[i] = end[i];
-			end[i] = end[-1 - i];
-		}
-	} else if (ld->_16bit) {
-		uint16 *start = (uint16 *)vi->sptr + vi->start;
-		uint16 *end = (uint16 *)vi->sptr + vi->end;
-		if (!ld->first_loop) {
-			for (i = 0; i < LOOP_PROLOGUE; i++) {
-				ld->prologue[i] = start[i - LOOP_PROLOGUE];
-				start[i - LOOP_PROLOGUE] = end[i - LOOP_PROLOGUE];
-			}
-		}
-		for (i = 0; i < LOOP_EPILOGUE; i++) {
-			ld->epilogue[i] = end[i];
-			end[i] = start[i];
+			end[i] = bidir ? end[-1 - i] : start[i];
 		}
 	} else {
 		uint8 *start = (uint8 *)vi->sptr + vi->start;
 		uint8 *end = (uint8 *)vi->sptr + vi->end;
+
 		if (!ld->first_loop) {
 			for (i = 0; i < LOOP_PROLOGUE; i++) {
-				ld->prologue[i] = start[i - LOOP_PROLOGUE];
-				start[i - LOOP_PROLOGUE] = end[i - LOOP_PROLOGUE];
+				int j = i - LOOP_PROLOGUE;
+				ld->prologue[i] = start[j];
+				start[j] = bidir ? start[-1 - j] : end[j];
 			}
 		}
 		for (i = 0; i < LOOP_EPILOGUE; i++) {
 			ld->epilogue[i] = end[i];
-			end[i] = start[i];
+			end[i] = bidir ? end[-1 - i] : start[i];
 		}
 	}
 }
