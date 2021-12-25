@@ -25,7 +25,7 @@
 #include "virtual.h"
 #include "mixer.h"
 #include "period.h"
-#include "player.h"		/* for set_sample_end() */
+#include "player.h"	/* for set_sample_end() */
 
 #ifdef LIBXMP_PAULA_SIMULATOR
 #include "paula.h"
@@ -442,16 +442,16 @@ static int loop_reposition(struct context_data *ctx, struct mixer_voice *vi,
 		/* Wrap voice position around endpoint */
 		if (vi->flags & VOICE_REVERSE) {
 			vi->pos = vi->end * 2.0 - vi->pos;
-		} else {
-			vi->pos = vi->start * 2.0 - vi->pos;
 
 #ifndef LIBXMP_CORE_DISABLE_IT
 			/* OpenMPT Bidi-Loops.it: "In Impulse Tracker’s software
 			 * mixer, ping-pong loops are shortened by one sample."
 			 */
 			if (IS_PLAYER_MODE_IT())
-				vi->pos += 1.0;
+				vi->pos -= 1.0;
 #endif
+		} else {
+			vi->pos = vi->start * 2.0 - vi->pos;
 		}
 	}
 	return loop_changed;
@@ -614,10 +614,7 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 					samples = 0;
 					usmp = 1;
 				} else {
-					/* floor to complement the ceil above.
-					 * This is required for bidi samples to
-					 * sync to regular samples properly. */
-					double c = floor((vi->pos - (double)vi->start) / step);
+					double c = ceil((vi->pos - (double)vi->start) / step);
 					if (c > size) {
 						c = size;
 					}
