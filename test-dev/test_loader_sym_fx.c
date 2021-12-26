@@ -14,7 +14,7 @@ TEST(test_loader_sym_fx)
 
 	/* Test: Set Sample Offset (high), Unset Sample Loop, low tempo */
 	f = fopen("data/format_sym_fx2.data", "r");
-	ret = xmp_load_module(opaque, "data/m/plastic.dsym.gz");
+	ret = xmp_load_module(opaque, "data/m/plastic.dsym");
 	fail_unless(ret == 0, "module load");
 
 	xmp_get_module_info(opaque, &info);

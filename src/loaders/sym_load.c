@@ -475,6 +475,9 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	D_(D_INFO "Instruments: %d", mod->ins);
 
 	for (i = 0; i < mod->ins; i++) {
+		struct xmp_sample *xxs = &mod->xxs[i];
+		struct xmp_instrument *xxi = &mod->xxi[i];
+		struct extra_sample_data *xtra = &m->xtra[i];
 		uint8 namebuf[128];
 
 		memset(namebuf, 0, sizeof(namebuf));
@@ -484,26 +487,27 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		if (~sn[i] & 0x80) {
 			int looplen;
 
-			mod->xxs[i].lps = hio_read24l(f) << 1;
+			xtra->sus = hio_read24l(f) << 1;
 			looplen = hio_read24l(f) << 1;
-			if (looplen > 2)
-				mod->xxs[i].flg |= XMP_SAMPLE_LOOP;
-			mod->xxs[i].lpe = mod->xxs[i].lps + looplen;
-			mod->xxi[i].sub[0].vol = hio_read8(f);
-			mod->xxi[i].sub[0].pan = 0x80;
+			xtra->sue = xtra->sus + looplen;
+			if (xtra->sus < xxs->len && xtra->sus < xtra->sue &&
+			    xtra->sue <= xxs->len && looplen > 2)
+				xxs->flg |= XMP_SAMPLE_SLOOP;
+			xxi->sub[0].vol = hio_read8(f);
+			xxi->sub[0].pan = 0x80;
 			/* finetune adjusted comparing DSym and S3M versions
 			 * of "inside out" */
-			mod->xxi[i].sub[0].fin = (int8)(hio_read8(f) << 4);
-			mod->xxi[i].sub[0].sid = i;
+			xxi->sub[0].fin = (int8)(hio_read8(f) << 4);
+			xxi->sub[0].sid = i;
 		}
 
 		D_(D_INFO "[%2X] %-22.22s %05x %05x %05x %c V%02x %+03d",
-				i, mod->xxi[i].name, mod->xxs[i].len,
-				mod->xxs[i].lps, mod->xxs[i].lpe,
-				mod->xxs[i].flg & XMP_SAMPLE_LOOP ? 'L' : ' ',
-				mod->xxi[i].sub[0].vol, mod->xxi[i].sub[0].fin);
+				i, xxi->name, xxs->len,
+				xtra->sus, xtra->sue,
+				xxs->flg & XMP_SAMPLE_SLOOP ? 'L' : ' ',
+				xxi->sub[0].vol, xxi->sub[0].fin);
 
-		if (sn[i] & 0x80 || mod->xxs[i].len == 0)
+		if (sn[i] & 0x80 || xxs->len == 0)
 			continue;
 
 		a = hio_read8(f);
@@ -512,46 +516,46 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		case 0: /* Signed 8-bit, logarithmic. */
 			D_(D_INFO "%27s VIDC", "");
 			ret = libxmp_load_sample(m, f, SAMPLE_FLAG_VIDC,
-					&mod->xxs[i], NULL);
+					xxs, NULL);
 			break;
 
 		case 1: /* LZW compressed signed 8-bit delta, linear. */
 			D_(D_INFO "%27s LZW", "");
-			size = mod->xxs[i].len;
+			size = xxs->len;
 
 			if (libxmp_read_lzw(buf, size, size, LZW_FLAGS_SYM, f) < 0)
 				goto err;
 
 			ret = libxmp_load_sample(m, NULL,
 					SAMPLE_FLAG_NOLOAD | SAMPLE_FLAG_DIFF,
-					&mod->xxs[i], buf);
+					xxs, buf);
 			break;
 
 		case 2: /* Signed 8-bit, linear. */
 			D_(D_INFO "%27s 8-bit", "");
-			ret = libxmp_load_sample(m, f, 0, &mod->xxs[i], NULL);
+			ret = libxmp_load_sample(m, f, 0, xxs, NULL);
 			break;
 
 		case 3: /* Signed 16-bit, linear. */
 			D_(D_INFO "%27s 16-bit", "");
-			mod->xxs[i].flg |= XMP_SAMPLE_16BIT;
-			ret = libxmp_load_sample(m, f, 0, &mod->xxs[i], NULL);
+			xxs->flg |= XMP_SAMPLE_16BIT;
+			ret = libxmp_load_sample(m, f, 0, xxs, NULL);
 			break;
 
 		case 4: /* Sigma-delta compressed unsigned 8-bit, linear. */
 			D_(D_INFO "%27s Sigma-delta", "");
-			size = mod->xxs[i].len;
+			size = xxs->len;
 			if (libxmp_read_sigma_delta(buf, size, size, f) < 0)
 				goto err;
 
 			ret = libxmp_load_sample(m, NULL,
 					SAMPLE_FLAG_NOLOAD | SAMPLE_FLAG_UNS,
-					&mod->xxs[i], buf);
+					xxs, buf);
 			break;
 
 		case 5: /* Sigma-delta compressed signed 8-bit, logarithmic. */
 			D_(D_INFO "%27s Sigma-delta VIDC", "");
-			size = mod->xxs[i].len;
+			size = xxs->len;
 			if (libxmp_read_sigma_delta(buf, size, size, f) < 0)
 				goto err;
 
@@ -564,7 +568,7 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
 			ret = libxmp_load_sample(m, NULL,
 					SAMPLE_FLAG_NOLOAD | SAMPLE_FLAG_VIDC,
-					&mod->xxs[i], buf);
+					xxs, buf);
 			break;
 
 		default:
@@ -600,7 +604,7 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		mod->xxc[i].pan = DEFPAN((((i + 3) / 2) % 2) * 0xff);
 	}
 
-	m->quirk = QUIRK_VIBALL | QUIRK_INVLOOP;
+	m->quirk = QUIRK_VIBALL | QUIRK_INVLOOP | QUIRK_KEYOFF;
 
 	free(buf);
 	return 0;
