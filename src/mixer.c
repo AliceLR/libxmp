@@ -394,10 +394,9 @@ static int has_active_loop(struct context_data *ctx, struct mixer_voice *vi,
 }
 
 /* Update the voice endpoints based on current sample loop state. */
-static void adjust_voice(struct context_data *ctx, struct mixer_voice *vi,
-			 struct xmp_sample *xxs, struct extra_sample_data *xtra)
+static void adjust_voice_end(struct context_data *ctx, struct mixer_voice *vi,
+			     struct xmp_sample *xxs, struct extra_sample_data *xtra)
 {
-	/* TODO this flag should probably be set elsewhere. */
 	vi->flags &= ~VOICE_BIDIR;
 
 	if (xtra && has_active_sustain_loop(ctx, vi, xxs)) {
@@ -427,7 +426,7 @@ static int loop_reposition(struct context_data *ctx, struct mixer_voice *vi,
 	vi->flags |= SAMPLE_LOOP;
 
 	if(loop_changed)
-		adjust_voice(ctx, vi, xxs, xtra);
+		adjust_voice_end(ctx, vi, xxs, xtra);
 
 	if (~vi->flags & VOICE_BIDIR) {
 		/* Reposition for next loop */
@@ -573,7 +572,7 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 			continue;
 		}
 
-		adjust_voice(ctx, vi, xxs, xtra);
+		adjust_voice_end(ctx, vi, xxs, xtra);
 		init_sample_wraparound(s, &loop_data, vi, xxs);
 
 		rampsize = s->ticksize >> ANTICLICK_SHIFT;
@@ -766,7 +765,7 @@ void libxmp_mixer_voicepos(struct context_data *ctx, int voc, double pos, int ac
 
 	vi->pos = pos;
 
-	adjust_voice(ctx, vi, xxs, xtra);
+	adjust_voice_end(ctx, vi, xxs, xtra);
 
 	if (vi->pos >= vi->end) {
 		vi->pos = vi->end;
