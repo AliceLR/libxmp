@@ -579,8 +579,7 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 		delta_l = (vol_l - vi->old_vl) / rampsize;
 		delta_r = (vol_r - vi->old_vr) / rampsize;
 
-		usmp = 0;
-		for (size = s->ticksize; size > 0; ) {
+		for (size = usmp = s->ticksize; size > 0; ) {
 			int split_noloop = 0;
 
 			if (p->xc_data[vi->chn].split) {
@@ -592,34 +591,29 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 			if (~vi->flags & VOICE_REVERSE) {
 				if (vi->pos >= vi->end) {
 					samples = 0;
-					usmp = 1;
+					if (--usmp <= 0)
+						break;
 				} else {
 					double c = ceil(((double)vi->end - vi->pos) / step);
 					/* ...inside the tick boundaries */
 					if (c > size) {
 						c = size;
 					}
-
 					samples = c;
-					if (samples > 0) {
-						usmp = 0;
-					}
 				}
 				step_dir = step;
 			} else {
 				/* Reverse */
 				if (vi->pos <= vi->start) {
 					samples = 0;
-					usmp = 1;
+					if (--usmp <= 0)
+						break;
 				} else {
 					double c = ceil((vi->pos - (double)vi->start) / step);
 					if (c > size) {
 						c = size;
 					}
 					samples = c;
-					if (samples > 0) {
-						usmp = 0;
-					}
 				}
 				step_dir = -step;
 			}
@@ -689,7 +683,7 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 			vi->pos += step_dir * samples;
 
 			/* No more samples in this tick */
-			size -= samples + usmp;
+			size -= samples;
 			if (size <= 0) {
 				if (has_active_loop(ctx, vi, xxs)) {
 					if (vi->pos >= vi->end) {
