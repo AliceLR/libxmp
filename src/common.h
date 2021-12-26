@@ -436,12 +436,13 @@ struct mixer_data {
 	int mix;		/* percentage of channel separation */
 	int interp;		/* interpolation type */
 	int dsp;		/* dsp effect flags */
-	char* buffer;		/* output buffer */
-	int32* buf32;		/* temporary buffer for 32 bit samples */
+	char *buffer;		/* output buffer */
+	int32 *buf32;		/* temporary buffer for 32 bit samples */
 	int numvoc;		/* default softmixer voices number */
 	int ticksize;
 	int dtright;		/* anticlick control, right channel */
 	int dtleft;		/* anticlick control, left channel */
+	int bidir_adjust;	/* adjustment for IT bidirectional loops */
 	double pbase;		/* period base */
 };
 

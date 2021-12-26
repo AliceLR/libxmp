@@ -422,9 +422,6 @@ static void adjust_voice(struct context_data *ctx, struct mixer_voice *vi,
 static int loop_reposition(struct context_data *ctx, struct mixer_voice *vi,
 			   struct xmp_sample *xxs, struct extra_sample_data *xtra)
 {
-#ifndef LIBXMP_CORE_DISABLE_IT
-	struct module_data *m = &ctx->m;
-#endif
 	int loop_changed = !(vi->flags & SAMPLE_LOOP);
 
 	vi->flags |= SAMPLE_LOOP;
@@ -441,17 +438,12 @@ static int loop_reposition(struct context_data *ctx, struct mixer_voice *vi,
 
 		/* Wrap voice position around endpoint */
 		if (vi->flags & VOICE_REVERSE) {
-			vi->pos = vi->end * 2.0 - vi->pos;
-
-#ifndef LIBXMP_CORE_DISABLE_IT
 			/* OpenMPT Bidi-Loops.it: "In Impulse Tracker’s software
 			 * mixer, ping-pong loops are shortened by one sample."
 			 */
-			if (IS_PLAYER_MODE_IT())
-				vi->pos -= 1.0;
-#endif
+			vi->pos = vi->end * 2 - ctx->s.bidir_adjust - vi->pos;
 		} else {
-			vi->pos = vi->start * 2.0 - vi->pos;
+			vi->pos = vi->start * 2 - vi->pos;
 		}
 	}
 	return loop_changed;
@@ -522,6 +514,13 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 			}
 		}
 	}
+#endif
+
+#ifndef LIBXMP_CORE_DISABLE_IT
+	/* OpenMPT Bidi-Loops.it: "In Impulse Tracker’s software
+	 * mixer, ping-pong loops are shortened by one sample."
+	 */
+	s->bidir_adjust = IS_PLAYER_MODE_IT() ? 1 : 0;
 #endif
 
 	libxmp_mixer_prepare(ctx);
@@ -954,6 +953,7 @@ int libxmp_mixer_on(struct context_data *ctx, int rate, int format, int c4rate)
 	s->dsp = XMP_DSP_LOWPASS;	/* enable filters by default */
 	/* s->numvoc = SMIX_NUMVOC; */
 	s->dtright = s->dtleft = 0;
+	s->bidir_adjust = 0;
 
 	return 0;
 
