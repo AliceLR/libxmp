@@ -397,7 +397,7 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
 
 		if ((f1 == FX_S3M_BPM && p1) || (f2 == FX_S3M_BPM && p2)) {
 		    parm = (f1 == FX_S3M_BPM) ? p1 : p2;
-		    if (parm >= 0x20) {
+		    if (parm >= XMP_MIN_BPM) {
 			frame_count += row_count * speed;
 			row_count = 0;
 			time += m->time_factor * frame_count * base_time / bpm;

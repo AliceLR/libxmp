@@ -1342,7 +1342,7 @@ static void play_channel(struct context_data *ctx, int chn)
 	process_pan(ctx, chn, act);
 
 #ifndef LIBXMP_CORE_PLAYER
-	if (HAS_QUIRK(QUIRK_PROTRACK) && xc->ins < mod->ins) {
+	if (HAS_QUIRK(QUIRK_PROTRACK | QUIRK_INVLOOP) && xc->ins < mod->ins) {
 		update_invloop(ctx, xc);
 	}
 #endif

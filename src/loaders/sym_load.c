@@ -94,10 +94,8 @@ static void fix_effect(struct xmp_event *e, int parm)
 		break;
 	case 0x09:	/* 09 xxx Set Sample Offset */
 		e->fxp = parm >> 1;
-		if (parm >= 0x200) {
-			e->f2t = FX_HIOFFSET;
-			e->f2p = parm >> 9;
-		}
+		e->f2t = FX_HIOFFSET;
+		e->f2p = parm >> 9;
 		break;
 	case 0x0a:	/* 0A xyz Volume Slide + Fine Slide Up */
 		if (parm & 0xff) {
@@ -184,7 +182,8 @@ static void fix_effect(struct xmp_event *e, int parm)
 		e->fxp = (EX_PATT_DELAY << 4) | (parm & 0x0f);
 		break;
 	case 0x1f:	/* 1F xxy Invert Loop */
-		e->fxt = 0;
+		e->fxt = FX_EXTENDED;
+		e->fxp = (EX_INVLOOP << 4) | (parm & 0xf);
 		break;
 	case 0x20:	/* 20 xyz Normal play or Arpeggio + Volume Slide Down */
 		e->fxt = FX_ARPEGGIO;
@@ -255,7 +254,12 @@ static void fix_effect(struct xmp_event *e, int parm)
 		}
 		break;
 	case 0x31:	/* 31 xxx Song Upcall */
+		e->fxt = 0;
+		break;
 	case 0x32:	/* 32 xxx Unset Sample Repeat */
+		e->fxt = FX_KEYOFF;
+		e->fxp = 0;
+		break;
 	default:
 		e->fxt = 0;
 	}
@@ -596,7 +600,7 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		mod->xxc[i].pan = DEFPAN((((i + 3) / 2) % 2) * 0xff);
 	}
 
-	m->quirk = QUIRK_VIBALL;
+	m->quirk = QUIRK_VIBALL | QUIRK_INVLOOP;
 
 	free(buf);
 	return 0;
