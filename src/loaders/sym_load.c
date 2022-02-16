@@ -74,7 +74,7 @@ static void fix_effect(struct xmp_event *e, int parm)
 	switch (e->fxt) {
 	case 0x00:	/* 00 xyz Normal play or Arpeggio + Volume Slide Up */
 	case 0x01:	/* 01 xyy Slide Up + Volume Slide Up */
-	case 0x02:	/* 01 xyy Slide Up + Volume Slide Up */
+	case 0x02:	/* 02 xyy Slide Down + Volume Slide Up */
 		e->fxp = parm & 0xff;
 		if (parm >> 8) {
 			e->f2t = FX_VOLSLIDE_UP;
@@ -154,18 +154,18 @@ static void fix_effect(struct xmp_event *e, int parm)
 	case 0x1b:	/* 1B xyy Fine Slide Down + Fine Volume Slide Down */
 	{
 		uint8 pitch_effect = ((e->fxt == 0x11 || e->fxt == 0x1a) ?
-				      EX_F_PORTA_UP : EX_F_PORTA_DN);
+				      FX_F_PORTA_UP : FX_F_PORTA_DN);
 		uint8 vol_effect = ((e->fxt == 0x11 || e->fxt == 0x12) ?
-				      EX_F_VSLIDE_UP : EX_F_VSLIDE_DN);
+				      FX_F_VSLIDE_UP : FX_F_VSLIDE_DN);
 
-		if ((parm & 0xff) && ((parm & 0xff) < 0x10)) {
-			e->fxt = FX_EXTENDED;
-			e->fxp = (pitch_effect << 4) | (parm & 0x0f);
+		if (parm & 0xff) {
+			e->fxt = pitch_effect;
+			e->fxp = parm & 0xff;
 		} else
 			e->fxt = 0;
 		if (parm >> 8) {
-			e->f2t = FX_EXTENDED;
-			e->f2p = (vol_effect << 4) | (parm >> 8);
+			e->f2t = vol_effect;
+			e->f2p = parm >> 8;
 		}
 		break;
 	}
