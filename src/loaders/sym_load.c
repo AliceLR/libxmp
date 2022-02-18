@@ -560,7 +560,7 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 				goto err;
 
 			/* This uses a bit packing that isn't either mu-law or
-				* normal Archimedes VIDC. Convert to the latter... */
+			 * normal Archimedes VIDC. Convert to the latter... */
 			for (j = 0; j < size; j++) {
 				uint8 t = (buf[j] < 128) ? ~buf[j] : buf[j];
 				buf[j] = (buf[j] >> 7) | (t << 1);
