@@ -75,7 +75,11 @@ static void fix_effect(struct xmp_event *e, int parm)
 	case 0x00:	/* 00 xyz Normal play or Arpeggio + Volume Slide Up */
 	case 0x01:	/* 01 xyy Slide Up + Volume Slide Up */
 	case 0x02:	/* 02 xyy Slide Down + Volume Slide Up */
-		e->fxp = parm & 0xff;
+		if (parm & 0xff) {
+			e->fxp = parm & 0xff;
+		} else {
+			e->fxt = 0;
+		}
 		if (parm >> 8) {
 			e->f2t = FX_VOLSLIDE_UP;
 			e->f2p = parm >> 8;
@@ -194,16 +198,24 @@ static void fix_effect(struct xmp_event *e, int parm)
 		}
 		break;
 	case 0x21:	/* 21 xyy Slide Up + Volume Slide Down */
-		e->fxt = FX_PORTA_UP;
-		e->fxp = parm & 0xff;
+		if (parm & 0xff) {
+			e->fxt = FX_PORTA_UP;
+			e->fxp = parm & 0xff;
+		} else {
+			e->fxt = 0;
+		}
 		if (parm >> 8) {
 			e->f2t = FX_VOLSLIDE_DN;
 			e->f2p = parm >> 8;
 		}
 		break;
 	case 0x22:	/* 22 xyy Slide Down + Volume Slide Down */
-		e->fxt = FX_PORTA_DN;
-		e->fxp = parm & 0xff;
+		if (parm & 0xff) {
+			e->fxt = FX_PORTA_DN;
+			e->fxp = parm & 0xff;
+		} else {
+			e->fxt = 0;
+		}
 		if (parm >> 8) {
 			e->f2t = FX_VOLSLIDE_DN;
 			e->f2p = parm >> 8;
