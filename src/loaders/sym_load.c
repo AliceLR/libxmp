@@ -112,7 +112,10 @@ static void fix_effect(struct xmp_event *e, int parm)
 		break;
 	case 0x0b:	/* 0B xxx Position Jump */
 	case 0x0c:	/* 0C xyy Set Volume */
+		e->fxp = parm;
+		break;
 	case 0x0d:	/* 0D xyy Pattern Break */
+		e->fxt = FX_IT_BREAK;
 		e->fxp = parm;
 		break;
 	case 0x0f:	/* 0F xxx Set Speed */
