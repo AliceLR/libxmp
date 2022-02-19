@@ -1409,6 +1409,10 @@ static void next_order(struct context_data *ctx)
 		}
 	} while (mod->xxo[p->ord] >= mod->pat);
 
+#ifndef LIBXMP_CORE_PLAYER
+	/* Archimedes line jump -- don't reset time tracking. */
+	if (f->jump_in_pat != p->ord)
+#endif
 	p->current_time = m->xxo_info[p->ord].time;
 
 	f->num_rows = mod->xxp[mod->xxo[p->ord]]->rows;
@@ -1421,6 +1425,8 @@ static void next_order(struct context_data *ctx)
 	p->frame = 0;
 
 #ifndef LIBXMP_CORE_PLAYER
+	f->jump_in_pat = -1;
+
 	/* Reset persistent effects at new pattern */
 	if (HAS_QUIRK(QUIRK_PERPAT)) {
 		int chn;
@@ -1509,6 +1515,21 @@ static void update_from_ord_info(struct context_data *ctx)
 #endif
 }
 
+void libxmp_reset_flow(struct context_data *ctx)
+{
+	struct flow_control *f = &ctx->p.flow;
+	f->jumpline = 0;
+	f->jump = -1;
+	f->pbreak = 0;
+	f->loop_chn = 0;
+	f->delay = 0;
+	f->rowdelay = 0;
+	f->rowdelay_set = 0;
+#ifndef LIBXMP_CORE_PLAYER
+	f->jump_in_pat = -1;
+#endif
+}
+
 int xmp_start_player(xmp_context opaque, int rate, int format)
 {
 	struct context_data *ctx = (struct context_data *)opaque;
@@ -1583,12 +1604,7 @@ int xmp_start_player(xmp_context opaque, int rate, int format)
 		goto err;
 	}
 
-	f->delay = 0;
-	f->jumpline = 0;
-	f->jump = -1;
-	f->loop_chn = 0;
-	f->pbreak = 0;
-	f->rowdelay_set = 0;
+	libxmp_reset_flow(ctx);
 
 	f->loop = (struct pattern_loop *) calloc(p->virt.virt_channels, sizeof(struct pattern_loop));
 	if (f->loop == NULL) {

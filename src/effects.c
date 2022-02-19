@@ -1097,10 +1097,15 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 	/* Archimedes (!Tracker, Digital Symphony, et al.) effects */
 
 	case FX_LINE_JUMP:	/* !Tracker and Digital Symphony "Line Jump" */
-		/* Jump to a line within the current order. */
-		p->flow.pbreak = 1;
-		p->flow.jump = p->ord;
+		/* Jump to a line within the current order. In Digital Symphony
+		 * this can be combined with position jump (like pattern break)
+		 * and overrides the pattern break line in lower channels. */
+		if (p->flow.pbreak == 0) {
+			p->flow.pbreak = 1;
+			p->flow.jump = p->ord;
+		}
 		p->flow.jumpline = fxp;
+		p->flow.jump_in_pat = p->ord;
 		break;
 #endif
 

@@ -116,7 +116,7 @@ static void fix_effect(struct xmp_event *e, int parm)
 		break;
 	case 0x0d:	/* 0D xyy Pattern Break */
 		e->fxt = FX_IT_BREAK;
-		e->fxp = parm;
+		e->fxp = (parm & 0xff) < 0x40 ? parm : 0;
 		break;
 	case 0x0f:	/* 0F xxx Set Speed */
 		if (parm) {

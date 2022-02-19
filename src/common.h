@@ -368,6 +368,9 @@ struct flow_control {
 	int delay;
 	int jumpline;
 	int loop_chn;
+#ifndef LIBXMP_CORE_PLAYER
+	int jump_in_pat;
+#endif
 
 	struct pattern_loop *loop;
 
@@ -481,6 +484,7 @@ void	libxmp_free_scan	(struct context_data *);
 int	libxmp_scan_sequences	(struct context_data *);
 int	libxmp_get_sequence	(struct context_data *, int);
 int	libxmp_set_player_mode	(struct context_data *);
+void	libxmp_reset_flow	(struct context_data *);
 
 int8	read8s			(FILE *, int *err);
 uint8	read8			(FILE *, int *err);
