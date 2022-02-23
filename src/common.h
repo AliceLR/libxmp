@@ -245,7 +245,6 @@ int libxmp_snprintf (char *, size_t, const char *, ...);
 #define QUIRK_NOBPM	(1 << 28)	/* Adjust speed only, no BPM */
 #define QUIRK_ARPMEM	(1 << 29)	/* Arpeggio has memory (S3M_ARPEGGIO) */
 #define QUIRK_RSTCHN	(1 << 30)	/* Reset channel on sample end */
-#define QUIRK_INVLOOP	((uint32)1 << 31)	/* Use invert loop effect. */
 
 #define HAS_QUIRK(x)	(m->quirk & (x))
 
@@ -333,7 +332,7 @@ struct module_data {
 	int gvolbase;			/* Global volume base */
 	int gvol;			/* Global volume */
 	const int *vol_table;		/* Volume translation table */
-	uint32 quirk;			/* player quirks */
+	int quirk;			/* player quirks */
 #define READ_EVENT_MOD	0
 #define READ_EVENT_FT2	1
 #define READ_EVENT_ST3	2

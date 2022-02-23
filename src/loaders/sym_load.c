@@ -190,8 +190,8 @@ static void fix_effect(struct xmp_event *e, int parm)
 		e->fxp = (EX_PATT_DELAY << 4) | MIN(parm, 0x0f);
 		break;
 	case 0x1f:	/* 1F xxy Invert Loop */
-		e->fxt = FX_EXTENDED;
-		e->fxp = (EX_INVLOOP << 4) | (parm & 0xf);
+		e->fxt = FX_INVLOOP;
+		e->fxp = parm & 0xf;
 		break;
 	case 0x20:	/* 20 xyz Normal play or Arpeggio + Volume Slide Down */
 		e->fxt = FX_ARPEGGIO;
@@ -620,7 +620,7 @@ static int sym_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		mod->xxc[i].pan = DEFPAN((((i + 3) / 2) % 2) * 0xff);
 	}
 
-	m->quirk = QUIRK_VIBALL | QUIRK_INVLOOP | QUIRK_KEYOFF;
+	m->quirk = QUIRK_VIBALL | QUIRK_KEYOFF;
 
 	free(buf);
 	return 0;
