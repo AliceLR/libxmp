@@ -166,7 +166,6 @@ test_loader_sym
 test_loader_sym_4096pat
 test_loader_sym_fx
 test_loader_sym_lzwquirk
-test_loader_sym_sigmadelta
 test_loader_ult
 test_loader_ac1d
 test_loader_crb

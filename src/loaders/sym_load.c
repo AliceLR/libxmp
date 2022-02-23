@@ -177,16 +177,17 @@ static void fix_effect(struct xmp_event *e, int parm)
 		break;
 	}
 	case 0x1c:	/* 1C xxx Note Cut */
+		/* TODO: 16, 1c, 1d, 1e should be able to support larger params. */
 		e->fxt = FX_EXTENDED;
-		e->fxp = (EX_CUT << 4) | (parm & 0x0f);
+		e->fxp = (EX_CUT << 4) | MIN(parm, 0x0f);
 		break;
 	case 0x1d:	/* 1D xxx Note Delay */
 		e->fxt = FX_EXTENDED;
-		e->fxp = (EX_DELAY << 4) | (parm & 0x0f);
+		e->fxp = (EX_DELAY << 4) | MIN(parm, 0x0f);
 		break;
 	case 0x1e:	/* 1E xxx Pattern Delay */
 		e->fxt = FX_EXTENDED;
-		e->fxp = (EX_PATT_DELAY << 4) | (parm & 0x0f);
+		e->fxp = (EX_PATT_DELAY << 4) | MIN(parm, 0x0f);
 		break;
 	case 0x1f:	/* 1F xxy Invert Loop */
 		e->fxt = FX_EXTENDED;

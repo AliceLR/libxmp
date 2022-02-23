@@ -9,12 +9,8 @@ TEST(test_loader_sym_fx)
 
 	opaque = xmp_create_context();
 
-	/* TODO Test: most effects. */
-	/* f = fopen("data/format_sym_fx.data", "r"); */
-
-	/* Test: Set Sample Offset (high), Unset Sample Loop, low tempo */
-	f = fopen("data/format_sym_fx2.data", "r");
-	ret = xmp_load_module(opaque, "data/m/plastic.dsym");
+	f = fopen("data/format_sym_fx.data", "r");
+	ret = xmp_load_module(opaque, "data/sym_effects.dsym");
 	fail_unless(ret == 0, "module load");
 
 	xmp_get_module_info(opaque, &info);
