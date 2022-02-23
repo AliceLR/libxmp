@@ -270,13 +270,25 @@ static const int invloop_table[] = {
 static void update_invloop(struct context_data *ctx, struct channel_data *xc)
 {
 	struct xmp_sample *xxs = libxmp_get_sample(ctx, xc->smp);
-	int len;
+	struct module_data *m = &ctx->m;
+	int lps, len = -1;
 
 	xc->invloop.count += invloop_table[xc->invloop.speed];
 
-	if (xxs != NULL && (xxs->flg & XMP_SAMPLE_LOOP) && xc->invloop.count >= 128) {
+	if (xxs != NULL) {
+		if (xxs->flg & XMP_SAMPLE_LOOP) {
+			lps = xxs->lps;
+			len = xxs->lpe - lps;
+		} else if (xxs->flg & XMP_SAMPLE_SLOOP) {
+			/* Some formats that support invert loop use sustain
+			 * loops instead (Digital Symphony). */
+			lps = m->xtra[xc->smp].sus;
+			len = m->xtra[xc->smp].sue - lps;
+		}
+	}
+
+	if (len >= 0 && xc->invloop.count >= 128) {
 		xc->invloop.count = 0;
-		len = xxs->lpe - xxs->lps;
 
 		if (++xc->invloop.pos > len) {
 			xc->invloop.pos = 0;
@@ -287,7 +299,7 @@ static void update_invloop(struct context_data *ctx, struct channel_data *xc)
 		}
 
 		if (~xxs->flg & XMP_SAMPLE_16BIT) {
-			xxs->data[xxs->lps + xc->invloop.pos] ^= 0xff;
+			xxs->data[lps + xc->invloop.pos] ^= 0xff;
 		}
 	}
 }
