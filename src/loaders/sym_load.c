@@ -139,8 +139,9 @@ static void fix_effect(struct xmp_event *e, int parm)
 		e->fxp = (EX_FINETUNE << 4) | (parm & 0x0f);
 		break;
 	case 0x16:	/* 16 xxx Jump to Loop */
+		/* TODO: 16, 19 should be able to support larger params. */
 		e->fxt = FX_EXTENDED;
-		e->fxp = (EX_PATTERN_LOOP << 4) | (parm & 0x0f);
+		e->fxp = (EX_PATTERN_LOOP << 4) | MIN(parm, 0x0f);
 		break;
 	case 0x17:	/* 17 xxy Set Tremolo Waveform */
 		e->fxt = FX_EXTENDED;
@@ -177,7 +178,7 @@ static void fix_effect(struct xmp_event *e, int parm)
 		break;
 	}
 	case 0x1c:	/* 1C xxx Note Cut */
-		/* TODO: 16, 1c, 1d, 1e should be able to support larger params. */
+		/* TODO: 1c, 1d, 1e should be able to support larger params. */
 		e->fxt = FX_EXTENDED;
 		e->fxp = (EX_CUT << 4) | MIN(parm, 0x0f);
 		break;
