@@ -470,9 +470,7 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 		case EX_PATT_DELAY:	/* Pattern delay */
 			goto fx_patt_delay;
 		case EX_INVLOOP:	/* Invert loop / funk repeat */
-			if (HAS_QUIRK(QUIRK_PROTRACK)) {
-				xc->invloop.speed = fxp;
-			}
+			xc->invloop.speed = fxp;
 			break;
 		}
 		break;
@@ -1108,11 +1106,6 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 		}
 		p->flow.jumpline = fxp;
 		p->flow.jump_in_pat = p->ord;
-		break;
-	case FX_INVLOOP:	/* Invert loop */
-		/* EFx requires QUIRK_PROTRACK, but other formats like
-		 * Digital Symphony implement and can use invert loop. */
-		xc->invloop.speed = fxp & 0x0f;
 		break;
 #endif
 

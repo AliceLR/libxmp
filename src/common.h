@@ -227,6 +227,7 @@ int libxmp_snprintf (char *, size_t, const char *, ...);
 #define QUIRK_UNISLD	(1 << 10)	/* Unified pitch slide/portamento */
 #define QUIRK_ITVPOR	(1 << 11)	/* Disable fine bends in IT vol fx */
 #define QUIRK_FTMOD	(1 << 12)	/* Flag for multichannel mods */
+#define QUIRK_INVLOOP	(1 << 13)	/* Enable invert loop */
 /*#define QUIRK_MODRNG	(1 << 13)*/	/* Limit periods to MOD range */
 #define QUIRK_INSVOL	(1 << 14)	/* Use instrument volume */
 #define QUIRK_VIRTUAL	(1 << 15)	/* Enable virtual channels */
