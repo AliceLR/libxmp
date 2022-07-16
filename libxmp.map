@@ -72,4 +72,17 @@ XMP_4.5 {
     xmp_test_module_from_memory;
     xmp_test_module_from_callbacks;
     xmp_syserrno;
+
+DIAGNOSTIC_has_high_fxx;
+DIAGNOSTIC_vblank_from_tracker_id;
+DIAGNOSTIC_cia_from_samerow_fxx;
+DIAGNOSTIC_vblank_from_end_check;
+DIAGNOSTIC_end_check_position;
+DIAGNOSTIC_end_check_speed;
+
+DIAGNOSTIC_scan_compare;
+DIAGNOSTIC_scan_compare_requested;
+DIAGNOSTIC_scan_compare_before_time;
+DIAGNOSTIC_scan_compare_after_time;
+DIAGNOSTIC_scan_compare_after_vblank;
 } XMP_4.4;

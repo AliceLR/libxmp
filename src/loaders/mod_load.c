@@ -430,6 +430,21 @@ static int get_tracker_id(struct module_data *m, struct mod_header *mh, int id)
 }
 #endif /* LIBXMP_CORE_PLAYER */
 
+/* FIXME: remove */
+LIBXMP_EXPORT extern int DIAGNOSTIC_has_high_fxx;
+LIBXMP_EXPORT extern int DIAGNOSTIC_vblank_from_tracker_id;
+LIBXMP_EXPORT extern int DIAGNOSTIC_cia_from_samerow_fxx;
+LIBXMP_EXPORT extern int DIAGNOSTIC_vblank_from_end_check;
+LIBXMP_EXPORT extern int DIAGNOSTIC_end_check_position;
+LIBXMP_EXPORT extern int DIAGNOSTIC_end_check_speed;
+int DIAGNOSTIC_has_high_fxx;
+int DIAGNOSTIC_vblank_from_tracker_id;
+int DIAGNOSTIC_cia_from_samerow_fxx;
+int DIAGNOSTIC_vblank_from_end_check;
+int DIAGNOSTIC_end_check_position;
+int DIAGNOSTIC_end_check_speed;
+/* FIXME: remove */
+
 static int mod_load(struct module_data *m, HIO_HANDLE *f, const int start)
 {
     struct xmp_module *mod = &m->mod;
@@ -451,6 +466,13 @@ static int mod_load(struct module_data *m, HIO_HANDLE *f, const int start)
     int high_fxx = 0;			/* high Fxx is used anywhere */
 #endif
     int ptkloop = 0;			/* Protracker loop */
+
+/* FIXME: remove */
+DIAGNOSTIC_has_high_fxx = 0;
+DIAGNOSTIC_vblank_from_tracker_id = 0;
+DIAGNOSTIC_cia_from_samerow_fxx = 0;
+DIAGNOSTIC_vblank_from_end_check = 0;
+/* FIXME: remove */
 
     LOAD_INIT();
 
@@ -805,21 +827,24 @@ skip_test:
 	 * by Glue Master (loaded by the His Master's Noise loader).
 	 */
 	if (tracker_is_vblank(tracker_id)) {
-	    m->quirk |= QUIRK_NOBPM;
+	/* FIXME: remove */ DIAGNOSTIC_vblank_from_tracker_id = 1;
+	//    m->quirk |= QUIRK_NOBPM;
 	}
-	m->compare_vblank = 0;
+	//m->compare_vblank = 0;
 
     } else if (samerow_fxx) {
 	/* If low Fxx and high Fxx are on the same row, there's a high chance
 	 * this is from a CIA-based tracker. There are some exceptions.
 	 */
+	/* FIXME: remove! */ DIAGNOSTIC_cia_from_samerow_fxx = 1;
 	if (tracker_id == TRACKER_NOISETRACKER ||
 	    tracker_id == TRACKER_PROBABLY_NOISETRACKER ||
 	    tracker_id == TRACKER_SOUNDTRACKER) {
 
+	    /* FIXME: remove */ DIAGNOSTIC_vblank_from_tracker_id = 1;
 	    tracker_id = TRACKER_UNKNOWN;
 	}
-	m->compare_vblank = 0;
+	//m->compare_vblank = 0;
 
     } else if (high_fxx && mod->len >= 8) {
 	/* Test for high Fxx at the end only--this is typically VBlank,
@@ -846,12 +871,17 @@ skip_test:
 		if (fxx == 0x7d)
 		    break;
 
-		m->compare_vblank = 0;
-		m->quirk |= QUIRK_NOBPM;
+		/* FIXME: remove! */ DIAGNOSTIC_vblank_from_end_check = 1;
+		/* FIXME: remove! */ DIAGNOSTIC_end_check_position = i;
+		/* FIXME: remove! */ DIAGNOSTIC_end_check_speed = fxx;
+		/* FIXME: uncomment, these are the two final lines here. */
+		//m->compare_vblank = 0;
+		//m->quirk |= QUIRK_NOBPM;
 		break;
 	    }
 	}
     }
+    /* FIXME: remove! */ DIAGNOSTIC_has_high_fxx = high_fxx;
 
     switch (tracker_id) {
     case TRACKER_PROTRACKER:
@@ -861,9 +891,13 @@ skip_test:
     case TRACKER_PROBABLY_NOISETRACKER:
     case TRACKER_NOISETRACKER:
 	tracker = "Noisetracker";
+	/* FIXME: remove */ m->quirk |= QUIRK_NOBPM;
+	/* FIXME: remove */ DIAGNOSTIC_vblank_from_tracker_id = 1;
 	break;
     case TRACKER_SOUNDTRACKER:
 	tracker = "Soundtracker";
+	/* FIXME: remove */ m->quirk |= QUIRK_NOBPM;
+	/* FIXME: remove */ DIAGNOSTIC_vblank_from_tracker_id = 1;
 	break;
     case TRACKER_FASTTRACKER:
     case TRACKER_FASTTRACKER2:

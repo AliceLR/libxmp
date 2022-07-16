@@ -52,6 +52,21 @@ static uint8_t *buf = NULL;
 static size_t buf_sz = 0;
 #endif
 
+/* FIXME: remove */
+LIBXMP_EXPORT extern int DIAGNOSTIC_has_high_fxx;
+LIBXMP_EXPORT extern int DIAGNOSTIC_vblank_from_tracker_id;
+LIBXMP_EXPORT extern int DIAGNOSTIC_cia_from_samerow_fxx;
+LIBXMP_EXPORT extern int DIAGNOSTIC_vblank_from_end_check;
+LIBXMP_EXPORT extern int DIAGNOSTIC_end_check_position;
+LIBXMP_EXPORT extern int DIAGNOSTIC_end_check_speed;
+
+LIBXMP_EXPORT extern int DIAGNOSTIC_scan_compare;
+LIBXMP_EXPORT extern int DIAGNOSTIC_scan_compare_requested;
+LIBXMP_EXPORT extern int DIAGNOSTIC_scan_compare_before_time;
+LIBXMP_EXPORT extern int DIAGNOSTIC_scan_compare_after_time;
+LIBXMP_EXPORT extern int DIAGNOSTIC_scan_compare_after_vblank;
+/* FIXME: remove */
+
 
 static inline int libxmp_test_function(xmp_context opaque, const uint8_t *data,
 					size_t size, int frames_to_play)
@@ -63,6 +78,9 @@ static inline int libxmp_test_function(xmp_context opaque, const uint8_t *data,
 	int test_error = 0;
 	int test_print = 0;
 	int load_error;
+
+	/* FIXME: remove! */ int length = 0;
+	/* FIXME: remove! */ DIAGNOSTIC_has_high_fxx = 0;
 
 	/* Fuzz loaders. */
 	load_error = xmp_load_module_from_memory(opaque, data, size);
@@ -76,6 +94,8 @@ static inline int libxmp_test_function(xmp_context opaque, const uint8_t *data,
 		xmp_get_module_info(opaque, &info);
 		interp = info.md5[7] * 3U / 256;
 		mono = (info.md5[3] & 1) ^ (info.md5[14] >> 7);
+
+		/* FIXME: remove! */ length = info.mod->len;
 
 		switch (interp) {
 		case 0:
@@ -124,11 +144,35 @@ static inline int libxmp_test_function(xmp_context opaque, const uint8_t *data,
 		else
 			status_unkn++;
 
+	if(DIAGNOSTIC_has_high_fxx)
+	{
+		O_(" TID:%s", DIAGNOSTIC_vblank_from_tracker_id ? "VBlank" : "CIA");
+		if(DIAGNOSTIC_cia_from_samerow_fxx)
+			O_(" SameRow:CIA");
+
+		if(DIAGNOSTIC_vblank_from_end_check)
+		{
+			O_(" EndChk:VBlank (%d/%d; F%02x)",
+				DIAGNOSTIC_end_check_position, length,
+				DIAGNOSTIC_end_check_speed);
+		}
+
+		if(DIAGNOSTIC_scan_compare)
+		{
+		O_( " ScanCmp:%s", DIAGNOSTIC_scan_compare_after_vblank ? "VBlank" : "CIA");
+		O_( " (before:%f after:%f)",
+		 DIAGNOSTIC_scan_compare_before_time / 60000.0,
+		 DIAGNOSTIC_scan_compare_after_time / 60000.0);
+		}
+	}
+
+/*
 		O_(" load:%d", load_error);
 		if (test_print)
 			O_(" test:%d", test_error);
 		if (load_error == 0)
 			O_(" play:%d", play_error);
+*/
 	}
 #endif
 	return 0;
