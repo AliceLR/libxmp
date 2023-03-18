@@ -21,7 +21,6 @@
  */
 
 #include "loader.h"
-#include "../period.h"
 
 static int xmf_test(HIO_HANDLE *, char *, const int);
 static int xmf_load(struct module_data *, HIO_HANDLE *, const int);
@@ -34,17 +33,40 @@ const struct format_loader libxmp_loader_xmf = {
 
 #define XMF_SAMPLE_ARRAY_SIZE (16 * 256)
 
+/* FIXME: this was a guess (255 * sqrt(x/255)) but mostly fixes this
+ * format's volume issue. Does the real replayer use a volume table that
+ * over-compensates for the GUS's logarithmic volumes? */
+static const int xmf_vol_table[256] = {
+	0,   16,  22,  27,  32,  35,  39,  42,  45,  48,  50,  53,  55,  57,  59,
+	62,  64,  66,  68,  69,  71,  73,  75,  76,  78,  80,  81,  83,  84,  86,
+	87,  89,  90,  92,  93,  94,  96,  97,  98,  100, 101, 102, 103, 105, 106,
+	107, 108, 109, 111, 112, 113, 114, 115, 116, 117, 118, 119, 121, 122, 123,
+	124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 136, 137,
+	138, 139, 140, 141, 142, 143, 144, 145, 146, 146, 147, 148, 149, 150, 151,
+	152, 152, 153, 154, 155, 156, 157, 157, 158, 159, 160, 161, 161, 162, 163,
+	164, 165, 165, 166, 167, 168, 168, 169, 170, 171, 171, 172, 173, 174, 174,
+	175, 176, 177, 177, 178, 179, 179, 180, 181, 182, 182, 183, 184, 184, 185,
+	186, 186, 187, 188, 189, 189, 190, 191, 191, 192, 193, 193, 194, 195, 195,
+	196, 196, 197, 198, 198, 199, 200, 200, 201, 202, 202, 203, 204, 204, 205,
+	205, 206, 207, 207, 208, 209, 209, 210, 210, 211, 212, 212, 213, 213, 214,
+	215, 215, 216, 216, 217, 218, 218, 219, 219, 220, 220, 221, 222, 222, 223,
+	223, 224, 225, 225, 226, 226, 227, 227, 228, 228, 229, 230, 230, 231, 231,
+	232, 232, 233, 233, 234, 235, 235, 236, 236, 237, 237, 238, 238, 239, 239,
+	240, 241, 241, 242, 242, 243, 243, 244, 244, 245, 245, 246, 246, 247, 247,
+	248, 248, 249, 249, 250, 250, 251, 251, 252, 252, 253, 253, 254, 254, 255
+};
+
 static int xmf_test(HIO_HANDLE *f, char *t, const int start)
 {
 	uint8 buf[XMF_SAMPLE_ARRAY_SIZE];
 	uint8 *pos;
 	uint32 samples_length = 0;
-	long length = hio_size(f);
+	long length;
+	int samples_start;
 	int num_patterns;
 	int num_channels;
 	int num_orders;
 	int num_ins;
-	int end_of_patterns;
 	int i;
 
 	if (hio_read8(f) != 0x03)
@@ -107,12 +129,11 @@ static int xmf_test(HIO_HANDLE *f, char *t, const int start)
 	num_patterns++;
 
 	/* Test total module length */
-	end_of_patterns = 0x1103 + num_channels + num_channels * 64 * 6;
-	if (length < end_of_patterns)
-		return -1;
-	if ((size_t)length - end_of_patterns < samples_length) {
+	samples_start = 0x1103 + num_channels + num_channels * 64 * 6;
+	length = hio_size(f);
+	if (length < samples_start || (size_t)length - samples_start < samples_length) {
 		D_(D_WARN "not XMF: file length %ld is shorter than required %zu",
-		 length, (size_t)end_of_patterns + samples_length);
+		 length, (size_t)samples_start + samples_length);
 		return -1;
 	}
 
@@ -146,10 +167,6 @@ static int xmf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 {
 	struct xmp_module *mod = &m->mod;
 	struct xmp_event *event;
-	struct xmp_instrument *xxi;
-	struct xmp_subinstrument *sub;
-	struct xmp_sample *xxs;
-	struct extra_sample_data *xtra;
 	uint8 *buf, *pos;
 	size_t pat_sz;
 	int i, j, k;
@@ -185,13 +202,15 @@ static int xmf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	/* Instruments */
 	pos = buf;
 	for (i = 0; i < mod->ins; i++, pos += 16) {
+		struct extra_sample_data *xtra = &(m->xtra[i]);
+		struct xmp_instrument *xxi = &(mod->xxi[i]);
+		struct xmp_sample *xxs = &(mod->xxs[i]);
+		struct xmp_subinstrument *sub;
+
 		if (libxmp_alloc_subinstrument(mod, i, 1) < 0)
 			goto err;
 
-		xxi = &(mod->xxi[i]);
 		sub = &(xxi->sub[0]);
-		xxs = &(mod->xxs[i]);
-		xtra = &(m->xtra[i]);
 
 		xxs->len = readmem24l(pos + 9) - readmem24l(pos + 6);
 		xxs->lps = readmem24l(pos + 0);
@@ -289,6 +308,7 @@ static int xmf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 			return -1;
 	}
 
+	m->vol_table = xmf_vol_table;
 	m->volbase = 0xff;
 	return 0;
 
