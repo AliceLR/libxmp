@@ -180,6 +180,7 @@ void libxmp_load_prologue(struct context_data *ctx)
 	m->volbase = 0x40;
 	m->gvol = m->gvolbase = 0x40;
 	m->vol_table = NULL;
+	m->amplify = 0;
 	m->quirk = 0;
 	m->read_event_type = READ_EVENT_MOD;
 	m->period_type = PERIOD_AMIGA;

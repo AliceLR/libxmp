@@ -489,6 +489,7 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 	int samples, size;
 	int vol, vol_l, vol_r, voc, usmp;
 	int prev_l, prev_r = 0;
+	int amplify;
 	int32 *buf_pos;
 	MIX_FP  mix_fn;
 	MIX_FP *mixerset;
@@ -751,11 +752,12 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 		size = XMP_MAX_FRAMESIZE;
 	}
 
+	amplify = s->amplify + m->amplify;
 	if (s->format & XMP_FORMAT_8BIT) {
-		downmix_int_8bit(s->buffer, s->buf32, size, s->amplify,
+		downmix_int_8bit(s->buffer, s->buf32, size, amplify,
 				s->format & XMP_FORMAT_UNSIGNED ? 0x80 : 0);
 	} else {
-		downmix_int_16bit((int16 *)s->buffer, s->buf32, size,s->amplify,
+		downmix_int_16bit((int16 *)s->buffer, s->buf32, size, amplify,
 				s->format & XMP_FORMAT_UNSIGNED ? 0x8000 : 0);
 	}
 
