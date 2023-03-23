@@ -273,21 +273,20 @@ static int xmf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		/* The Sound Blaster driver will only loop if both the
 		 * loop start and loop end are non-zero. The Sound Blaster
 		 * driver does not support 16-bit samples or bidirectional
-		 * looping. The Gravis UltraSound driver will only play
-		 * bidirectional sample loops one time.
+		 * looping, and plays these as regular 8-bit looped samples.
 		 *
-		 * For 16-bit samples, the stored loop and memory values are
-		 * treated as if they are measured in samples by the GUS.
-		 * The loader, however, treats the length as if it is in bytes,
-		 * so the GUS will play junk data after the 16-bit sample.
-		 * To simulate this, do not adjust the length here. This will
-		 * make libxmp load twice as much sample data as it ought to.
+		 * GUS: 16-bit samples are loaded as 8-bit but play as 16-bit.
+		 * If the first sample is 16-bit it will partly work (due to
+		 * having a GUS RAM address of 0?). Other 16-bit samples will
+		 * read from silence, garbage, or other samples.
 		 */
-		if (pos[13] & 0x04) /* GUS 16-bit flag */
+		if (pos[13] & 0x04) { /* GUS 16-bit flag */
 			xxs->flg |= XMP_SAMPLE_16BIT;
-		if (pos[13] & 0x08) /* GUS loop enable */
+			xxs->len >>= 1;
+		}
+		if (pos[13] & 0x08)   /* GUS loop enable */
 			xxs->flg |= XMP_SAMPLE_LOOP;
-		if (pos[13] & 0x10) /* GUS reverse flag */
+		if (pos[13] & 0x10)   /* GUS reverse flag */
 			xxs->flg |= XMP_SAMPLE_LOOP_BIDIR;
 
 		if (xxs->len > 0)
@@ -371,16 +370,6 @@ static int xmf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	for (i = 0; i < mod->ins; i++) {
 		if (libxmp_load_sample(m, f, 0, &mod->xxs[i], NULL))
 			return -1;
-
-		/* 16-bit samples are not fully supported and will play
-		 * data in GUS RAM following the sample, typically data from
-		 * other samples. libxmp simulates this bug by loading twice
-		 * as much sample data for 16-bit samples, so seek back to
-		 * where the next sample actually starts.
-		 */
-		if (mod->xxs[i].len && (mod->xxs[i].flg & XMP_SAMPLE_16BIT)) {
-			hio_seek(f, -(mod->xxs[i].len >> 1), SEEK_CUR);
-		}
 	}
 
 	m->volbase = 0xff;
