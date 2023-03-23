@@ -20,6 +20,10 @@
  * THE SOFTWARE.
  */
 
+/* Imperium Galactica XMF loader.
+ * This format is completely unrelated to the MIDI XMF format.
+ */
+
 #include "loader.h"
 
 static int xmf_test(HIO_HANDLE *, char *, const int);
