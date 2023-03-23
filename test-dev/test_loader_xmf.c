@@ -10,7 +10,7 @@ TEST(test_loader_xmf)
 	f = fopen("data/format_xmf.data", "r");
 
 	opaque = xmp_create_context();
-	ret = xmp_load_module(opaque, "data/m/crystals.xmf");
+	ret = xmp_load_module(opaque, "data/xmf_effects.xmf");
 	fail_unless(ret == 0, "module load");
 
 	xmp_get_module_info(opaque, &info);
