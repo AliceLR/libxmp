@@ -377,7 +377,8 @@ static int xmf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	}
 
 	m->volbase = 0xff;
-	m->amplify = 1;		/* XMF modules expect a relatively loud mix. */
+	m->mvolbase = 48;
+	m->mvol = m->mvolbase * 2;	/* XMF modules expect a loud mix. */
 	return 0;
 
   err:

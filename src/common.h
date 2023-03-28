@@ -368,7 +368,6 @@ struct module_data {
 	int mvolbase;			/* Mix volume base (S3M/IT) */
 	int mvol;			/* Mix volume (S3M/IT) */
 	const int *vol_table;		/* Volume translation table */
-	int amplify;			/* Per-format amplification adjustment */
 	int quirk;			/* player quirks */
 #define READ_EVENT_MOD	0
 #define READ_EVENT_FT2	1
