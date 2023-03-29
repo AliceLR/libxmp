@@ -13,17 +13,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      - name: CMake configure
-        run: |
-          mkdir build
-          cmake . -DCMAKE_BUILD_TYPE=Debug -DWITH_UNIT_TESTS=ON -B build
-      - name: CMake build
-        run: |
-          cmake --build build --target all -- -j 3
-      - name: CMake checks
-        run: |
-          cd build
-          ctest --output-on-failure
       - name: Create and run Autotools configure script
         run: |
           autoconf
@@ -38,6 +27,20 @@ jobs:
         run: |
           (cd test-dev && autoconf && ./configure)
           (cd test-dev && make -j 3)
+      - name: Autotools install
+        run: |
+          sudo make install
+      - name: CMake configure
+        run: |
+          mkdir build
+          cmake . -DCMAKE_BUILD_TYPE=Debug -DWITH_UNIT_TESTS=ON -B build
+      - name: CMake build
+        run: |
+          cmake --build build --target all -- -j 3
+      - name: CMake checks
+        run: |
+          cd build
+          ctest --output-on-failure
 
   linux-clang:
     runs-on: ubuntu-latest
