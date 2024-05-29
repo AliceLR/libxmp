@@ -153,7 +153,6 @@
     old_vr += delta_r; \
 } while (0)
 
-#if 0
 #define AVERAGE(smp_in_l, smp_in_r) (((smp_in_l) + (smp_in_r)) >> 1)
 
 #define MIX_MONO_AVG(smp_in_l, smp_in_r) do { \
@@ -163,7 +162,6 @@
 #define MIX_MONO_AVG_AC(smp_in_l, smp_in_r) do { \
     MIX_MONO_AC(AVERAGE((smp_in_l), (smp_in_r))); \
 } while (0)
-#endif
 
 /* For "nearest" to be nearest neighbor (instead of floor), the position needs
  * to be rounded. This only needs to be done once at the start of mixing, and
