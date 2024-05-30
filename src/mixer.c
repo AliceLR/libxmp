@@ -34,10 +34,11 @@
 
 #define FLAG_16_BITS	0x01
 #define FLAG_STEREO	0x02
-#define FLAG_FILTER	0x04
+#define FLAG_STEREOOUT	0x04
+#define FLAG_FILTER	0x08
 #define FLAG_ACTIVE	0x10
 /* #define FLAG_SYNTH	0x20 */
-#define FIDX_FLAGMASK	(FLAG_16_BITS | FLAG_STEREO | FLAG_FILTER)
+#define FIDX_FLAGMASK	(FLAG_16_BITS | FLAG_STEREO | FLAG_STEREOOUT | FLAG_FILTER)
 
 #define DOWNMIX_SHIFT	 12
 #define LIM8_HI		 127
@@ -47,8 +48,8 @@
 
 struct loop_data
 {
-#define LOOP_PROLOGUE 1
-#define LOOP_EPILOGUE 2
+#define LOOP_PROLOGUE (1 * 2 /* stereo */)
+#define LOOP_EPILOGUE (2 * 2 /* stereo */)
 	void *sptr;
 	int start;
 	int end;
@@ -65,27 +66,47 @@ struct loop_data
 #define ANTICLICK_FPSHIFT	24
 
 MIX_FN(monoout_mono_8bit_nearest);
-MIX_FN(monoout_mono_8bit_linear);
 MIX_FN(monoout_mono_16bit_nearest);
-MIX_FN(monoout_mono_16bit_linear);
+MIX_FN(monoout_stereo_8bit_nearest);
+MIX_FN(monoout_stereo_16bit_nearest);
 MIX_FN(stereoout_mono_8bit_nearest);
-MIX_FN(stereoout_mono_8bit_linear);
 MIX_FN(stereoout_mono_16bit_nearest);
+MIX_FN(stereoout_stereo_8bit_nearest);
+MIX_FN(stereoout_stereo_16bit_nearest);
+MIX_FN(monoout_mono_8bit_linear);
+MIX_FN(monoout_mono_16bit_linear);
+MIX_FN(monoout_stereo_8bit_linear);
+MIX_FN(monoout_stereo_16bit_linear);
+MIX_FN(stereoout_mono_8bit_linear);
 MIX_FN(stereoout_mono_16bit_linear);
+MIX_FN(stereoout_stereo_8bit_linear);
+MIX_FN(stereoout_stereo_16bit_linear);
 MIX_FN(monoout_mono_8bit_spline);
 MIX_FN(monoout_mono_16bit_spline);
+MIX_FN(monoout_stereo_8bit_spline);
+MIX_FN(monoout_stereo_16bit_spline);
 MIX_FN(stereoout_mono_8bit_spline);
 MIX_FN(stereoout_mono_16bit_spline);
+MIX_FN(stereoout_stereo_8bit_spline);
+MIX_FN(stereoout_stereo_16bit_spline);
 
 #ifndef LIBXMP_CORE_DISABLE_IT
 MIX_FN(monoout_mono_8bit_linear_filter);
 MIX_FN(monoout_mono_16bit_linear_filter);
+MIX_FN(monoout_stereo_8bit_linear_filter);
+MIX_FN(monoout_stereo_16bit_linear_filter);
 MIX_FN(stereoout_mono_8bit_linear_filter);
 MIX_FN(stereoout_mono_16bit_linear_filter);
+MIX_FN(stereoout_stereo_8bit_linear_filter);
+MIX_FN(stereoout_stereo_16bit_linear_filter);
 MIX_FN(monoout_mono_8bit_spline_filter);
 MIX_FN(monoout_mono_16bit_spline_filter);
+MIX_FN(monoout_stereo_8bit_spline_filter);
+MIX_FN(monoout_stereo_16bit_spline_filter);
 MIX_FN(stereoout_mono_8bit_spline_filter);
 MIX_FN(stereoout_mono_16bit_spline_filter);
+MIX_FN(stereoout_stereo_8bit_spline_filter);
+MIX_FN(stereoout_stereo_16bit_spline_filter);
 #endif
 
 #ifdef LIBXMP_PAULA_SIMULATOR
@@ -107,42 +128,66 @@ typedef void (*MIX_FP) (struct mixer_voice *, int32 *, int, int, int, int, int, 
 static MIX_FP nearest_mixers[] = {
 	libxmp_mix_monoout_mono_8bit_nearest,
 	libxmp_mix_monoout_mono_16bit_nearest,
+	libxmp_mix_monoout_stereo_8bit_nearest,
+	libxmp_mix_monoout_stereo_16bit_nearest,
 	libxmp_mix_stereoout_mono_8bit_nearest,
 	libxmp_mix_stereoout_mono_16bit_nearest,
+	libxmp_mix_stereoout_stereo_8bit_nearest,
+	libxmp_mix_stereoout_stereo_16bit_nearest,
 
 #ifndef LIBXMP_CORE_DISABLE_IT
 	libxmp_mix_monoout_mono_8bit_nearest,
 	libxmp_mix_monoout_mono_16bit_nearest,
+	libxmp_mix_monoout_stereo_8bit_nearest,
+	libxmp_mix_monoout_stereo_16bit_nearest,
 	libxmp_mix_stereoout_mono_8bit_nearest,
 	libxmp_mix_stereoout_mono_16bit_nearest,
+	libxmp_mix_stereoout_stereo_8bit_nearest,
+	libxmp_mix_stereoout_stereo_16bit_nearest,
 #endif
 };
 
 static MIX_FP linear_mixers[] = {
 	libxmp_mix_monoout_mono_8bit_linear,
 	libxmp_mix_monoout_mono_16bit_linear,
+	libxmp_mix_monoout_stereo_8bit_linear,
+	libxmp_mix_monoout_stereo_16bit_linear,
 	libxmp_mix_stereoout_mono_8bit_linear,
 	libxmp_mix_stereoout_mono_16bit_linear,
+	libxmp_mix_stereoout_stereo_8bit_linear,
+	libxmp_mix_stereoout_stereo_16bit_linear,
 
 #ifndef LIBXMP_CORE_DISABLE_IT
 	libxmp_mix_monoout_mono_8bit_linear_filter,
 	libxmp_mix_monoout_mono_16bit_linear_filter,
+	libxmp_mix_monoout_stereo_8bit_linear_filter,
+	libxmp_mix_monoout_stereo_16bit_linear_filter,
 	libxmp_mix_stereoout_mono_8bit_linear_filter,
-	libxmp_mix_stereoout_mono_16bit_linear_filter
+	libxmp_mix_stereoout_mono_16bit_linear_filter,
+	libxmp_mix_stereoout_stereo_8bit_linear_filter,
+	libxmp_mix_stereoout_stereo_16bit_linear_filter
 #endif
 };
 
 static MIX_FP spline_mixers[] = {
 	libxmp_mix_monoout_mono_8bit_spline,
 	libxmp_mix_monoout_mono_16bit_spline,
+	libxmp_mix_monoout_stereo_8bit_spline,
+	libxmp_mix_monoout_stereo_16bit_spline,
 	libxmp_mix_stereoout_mono_8bit_spline,
 	libxmp_mix_stereoout_mono_16bit_spline,
+	libxmp_mix_stereoout_stereo_8bit_spline,
+	libxmp_mix_stereoout_stereo_16bit_spline,
 
 #ifndef LIBXMP_CORE_DISABLE_IT
 	libxmp_mix_monoout_mono_8bit_spline_filter,
 	libxmp_mix_monoout_mono_16bit_spline_filter,
+	libxmp_mix_monoout_stereo_8bit_spline_filter,
+	libxmp_mix_monoout_stereo_16bit_spline_filter,
 	libxmp_mix_stereoout_mono_8bit_spline_filter,
-	libxmp_mix_stereoout_mono_16bit_spline_filter
+	libxmp_mix_stereoout_mono_16bit_spline_filter,
+	libxmp_mix_stereoout_stereo_8bit_spline_filter,
+	libxmp_mix_stereoout_stereo_16bit_spline_filter
 #endif
 };
 
@@ -150,7 +195,15 @@ static MIX_FP spline_mixers[] = {
 static MIX_FP a500_mixers[] = {
 	libxmp_mix_monoout_mono_a500,
 	NULL,
+	NULL,
+	NULL,
 	libxmp_mix_stereoout_mono_a500,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
 	NULL,
 	NULL,
 	NULL,
@@ -162,7 +215,15 @@ static MIX_FP a500_mixers[] = {
 static MIX_FP a500led_mixers[] = {
 	libxmp_mix_monoout_mono_a500_filter,
 	NULL,
+	NULL,
+	NULL,
 	libxmp_mix_stereoout_mono_a500_filter,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
 	NULL,
 	NULL,
 	NULL,
@@ -313,11 +374,17 @@ static void init_sample_wraparound(struct mixer_data *s, struct loop_data *ld,
 	ld->_16bit = (xxs->flg & XMP_SAMPLE_16BIT);
 	ld->active = 1;
 
+	/* Stereo */
+	if (xxs->flg & XMP_SAMPLE_STEREO) {
+		ld->start <<= 1;
+		ld->end <<= 1;
+	}
+
 	bidir = vi->flags & VOICE_BIDIR;
 
 	if (ld->_16bit) {
-		uint16 *start = (uint16 *)vi->sptr + vi->start;
-		uint16 *end = (uint16 *)vi->sptr + vi->end;
+		uint16 *start = (uint16 *)ld->sptr + ld->start;
+		uint16 *end = (uint16 *)ld->sptr + ld->end;
 
 		if (!ld->first_loop) {
 			for (i = 0; i < LOOP_PROLOGUE; i++) {
@@ -331,8 +398,8 @@ static void init_sample_wraparound(struct mixer_data *s, struct loop_data *ld,
 			end[i] = bidir ? end[-1 - i] : start[i];
 		}
 	} else {
-		uint8 *start = (uint8 *)vi->sptr + vi->start;
-		uint8 *end = (uint8 *)vi->sptr + vi->end;
+		uint8 *start = (uint8 *)ld->sptr + ld->start;
+		uint8 *end = (uint8 *)ld->sptr + ld->end;
 
 		if (!ld->first_loop) {
 			for (i = 0; i < LOOP_PROLOGUE; i++) {
@@ -714,6 +781,8 @@ void libxmp_mixer_softmixer(struct context_data *ctx)
 					if (mix_fn != NULL) {
 						mix_fn(vi, buf_pos, samples,
 							vol_l >> 8, vol_r >> 8, step_dir * (1 << SMIX_SHIFT), rsize, delta_l, delta_r);
+					} else {
+						printf("mixer %d is null\n", mixer_id);
 					}
 
 					buf_pos += mix_size;
@@ -867,7 +936,7 @@ void libxmp_mixer_setpatch(struct context_data *ctx, int voc, int smp, int ac)
 	vi->fidx = 0;
 
 	if (~s->format & XMP_FORMAT_MONO) {
-		vi->fidx |= FLAG_STEREO;
+		vi->fidx |= FLAG_STEREOOUT;
 	}
 
 	set_sample_end(ctx, voc, 0);
@@ -885,6 +954,9 @@ void libxmp_mixer_setpatch(struct context_data *ctx, int voc, int smp, int ac)
 
 	if (xxs->flg & XMP_SAMPLE_16BIT) {
 		vi->fidx |= FLAG_16_BITS;
+	}
+	if (xxs->flg & XMP_SAMPLE_STEREO) {
+		vi->fidx |= FLAG_STEREO;
 	}
 
 	libxmp_mixer_voicepos(ctx, voc, 0, ac);
