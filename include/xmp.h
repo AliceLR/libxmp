@@ -31,6 +31,9 @@ extern "C" {
 # else
 #  define LIBXMP_EXPORT
 # endif
+#elif defined(EMSCRIPTEN)
+# define LIBXMP_EXPORT EMSCRIPTEN_KEEPALIVE
+# define LIBXMP_EXPORT_VAR
 #elif (defined(__GNUC__) || defined(__clang__) || defined(__HP_cc)) && defined(XMP_SYM_VISIBILITY)
 # if defined(LIBXMP_STATIC)
 #  define LIBXMP_EXPORT
@@ -43,9 +46,6 @@ extern "C" {
 # else
 #  define LIBXMP_EXPORT __global
 # endif
-#elif defined(EMSCRIPTEN)
-# define LIBXMP_EXPORT EMSCRIPTEN_KEEPALIVE
-# define LIBXMP_EXPORT_VAR
 #else
 # define LIBXMP_EXPORT
 #endif

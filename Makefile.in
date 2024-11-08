@@ -44,6 +44,7 @@ DLL		= libxmp.dll
 IMPLIB		= libxmp.dll.a
 DYLIB		= libxmp.$(VERSION_MAJOR).dylib
 GCLIB		= libxmp-gc.a
+JSLIB		= libxmp.js
 DYLIB_COMPAT	= -compatibility_version,$(COMPAT_VERSION),
 
 DARWIN_VERSION	= @DARWIN_VERSION@
@@ -98,6 +99,8 @@ shared: lib/$(SHLIB)
 
 coverage: lib/$(GCLIB)
 
+jsmodule: lib/${JSLIB}
+
 dll: lib/$(DLL)
 
 dylib: lib/$(DYLIB)
@@ -141,6 +144,12 @@ lib/$(GCLIB): $(GCOBJS)
 	if [ "$(V)" -gt 0 ]; then echo $$CMD; else echo AR $@ ; fi; \
 	eval $$CMD
 	$(RANLIB) $@
+
+lib/$(JSLIB): $(LOBJS)
+	@mkdir -p lib
+	@CMD='$(LD) $(LDFLAGS) -s ENVIRONMENT=web -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s EXPORT_NAME="libxmp" $^ -o $@'; \
+	if [ "$(V)" -gt 0 ]; then echo $$CMD; else echo LD $@ ; fi; \
+	eval $$CMD
 
 docs: all-docs
 
