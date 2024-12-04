@@ -40,6 +40,7 @@
 
 #include "common.h"
 #include "effects.h"
+#include "player.h"
 #include "mixer.h"
 
 #ifndef LIBXMP_CORE_PLAYER
@@ -65,10 +66,10 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
     int gvl, bpm, speed, base_time, chn;
     int frame_count;
     double time, start_time;
-    int loop_chn, loop_num, inside_loop, line_jump;
+    int inside_loop, line_jump;
     int pdelay = 0;
-    int loop_count[XMP_MAX_CHANNELS];
-    int loop_row[XMP_MAX_CHANNELS];
+    struct flow_control f;
+    struct pattern_loop loop[XMP_MAX_CHANNELS];
     int i, pat;
     int has_marker;
     struct ord_data *info;
@@ -89,12 +90,19 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
 			mod->xxp[pat]->rows ? mod->xxp[pat]->rows : 1);
     }
 
+    /* Use a temporary flow_control so the scan can borrow the player's
+     * Pattern Loop handler. */
+    memset(&f, 0, sizeof(f));
+    f.loop = loop;
     for (i = 0; i < mod->chn; i++) {
-	loop_count[i] = 0;
-	loop_row[i] = -1;
+	loop[i].start = 0;
+	loop[i].count = 0;
     }
-    loop_num = 0;
-    loop_chn = -1;
+    f.loop_dest = -1;
+    f.loop_param = -1;
+    f.loop_start = -1;
+    f.loop_count = 0;
+    f.loop_active_num = 0;
     line_jump = 0;
 
     gvl = mod->gvl;
@@ -203,6 +211,17 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
             break_row = 0;
         }
 
+	/* Changing patterns may reset loop vars. */
+	if (HAS_LOOP_MODE(LOOP_MODE_PATTERN_RESET)) {
+	    f.loop_start = -1;
+	    f.loop_count = 0;
+	    inside_loop = 0;
+	    for (i = 0; i < mod->chn; i++) {
+		f.loop[i].start = 0;
+		f.loop[i].count = 0;
+	    }
+	}
+
         /* Loops can cross pattern boundaries, so check if we're not looping */
         if (m->scan_cnt[ord][break_row] && !inside_loop) {
             break;
@@ -262,7 +281,7 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
 		goto end_module;
 	    }
 
-	    if (!loop_num && !line_jump && m->scan_cnt[ord][row]) {
+	    if (!f.loop_active_num && !line_jump && m->scan_cnt[ord][row]) {
 		row_count--;
 		goto end_module;
 	    }
@@ -559,38 +578,27 @@ static int scan_module(struct context_data *ctx, int ep, int chain)
 		    }
 
 		    if ((parm >> 4) == EX_PATTERN_LOOP) {
-			if (parm &= 0x0f) {
-			    /* Loop end */
-			    if (loop_count[chn]) {
-				if (--loop_count[chn]) {
-				    /* next iteration */
-				    loop_chn = chn;
-				} else {
-				    /* finish looping */
-				    loop_num--;
-				    inside_loop = 0;
-				    if (m->quirk & QUIRK_S3MLOOP)
-					loop_row[chn] = row;
-				}
-			    } else {
-				loop_count[chn] = parm;
-				loop_chn = chn;
-				loop_num++;
-			    }
-			} else {
-			    /* Loop start */
-			    loop_row[chn] = row - 1;
-			    inside_loop = 1;
-			    if (HAS_QUIRK(QUIRK_FT2BUGS))
-				break_row = row;
+			/* QUIRK_FT2BUGS may set break_row */
+			f.jumpline = break_row;
+			libxmp_process_pattern_loop(ctx, &f, chn, row, LSN(parm));
+			break_row = f.jumpline;
+
+			/* Attempt to detect the inside of a loop.
+			 * TODO: this won't detect all cases. */
+			if (LSN(parm) > 0 && f.loop_dest < 0) {
+				inside_loop = 0;
+			} else if (LSN(parm) == 0) {
+				inside_loop = 1;
 			}
 		    }
 		}
 	    }
 
-	    if (loop_chn >= 0) {
-		row = loop_row[loop_chn];
-		loop_chn = -1;
+	    f.loop_param = -1;
+	    if (f.loop_dest >= 0) {
+		/* -1 as it will be incremented immediately by the loop. */
+		row = f.loop_dest - 1;
+		f.loop_dest = -1;
 	    }
 
 #ifndef LIBXMP_CORE_PLAYER
