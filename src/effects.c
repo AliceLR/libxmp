@@ -1,5 +1,5 @@
 /* Extended Module Player
- * Copyright (C) 1996-2022 Claudio Matsuoka and Hipolito Carraro Jr
+ * Copyright (C) 1996-2024 Claudio Matsuoka and Hipolito Carraro Jr
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -416,27 +416,7 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 			}
 			break;
 		case EX_PATTERN_LOOP:	/* Loop pattern */
-			if (fxp == 0) {
-				/* mark start of loop */
-				f->loop[chn].start = p->row;
-				if (HAS_QUIRK(QUIRK_FT2BUGS))
-				  p->flow.jumpline = p->row;
-			} else {
-				/* end of loop */
-				if (f->loop[chn].count) {
-					if (--f->loop[chn].count) {
-						/* **** H:FIXME **** */
-						f->loop_chn = ++chn;
-					} else {
-						if (HAS_QUIRK(QUIRK_S3MLOOP))
-							f->loop[chn].start =
-							    p->row + 1;
-					}
-				} else {
-					f->loop[chn].count = fxp;
-					f->loop_chn = ++chn;
-				}
-			}
+			libxmp_process_pattern_loop(ctx, f, chn, p->row, fxp);
 			break;
 		case EX_TREMOLO_WF:	/* Set tremolo waveform */
 			libxmp_lfo_set_waveform(&xc->tremolo.lfo, fxp & 3);
@@ -594,8 +574,9 @@ void libxmp_process_fx(struct context_data *ctx, struct channel_data *xc, int ch
 		xc->vol.fslide2 = -fxp;
 		break;
 	case FX_IT_BREAK:	/* Pattern break with hex parameter */
-		if (!f->loop_chn)
-		{
+		/* IT break is not applied if a lower channel looped (2.00+).
+		 * (Labyrinth of Zeux ZX_11.it "Raceway"). */
+		if (f->loop_dest < 0) {
 			p->flow.pbreak = 1;
 			p->flow.jumpline = fxp;
 		}

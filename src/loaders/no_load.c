@@ -79,6 +79,8 @@ static int no_test(HIO_HANDLE *f, char *t, const int start)
 }
 
 
+/* TODO: 0.60 added a lot more effects, and some version between 0.64 and
+ * 0.80 changed their mappings. */
 static const uint8 fx[15] = {
 	FX_ARPEGGIO,
 	0,
@@ -251,6 +253,7 @@ static int no_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	}
 
 	m->quirk |= QUIRKS_ST3;
+	m->loop_mode = LOOP_MODE_LIQUID;
 	m->read_event_type = READ_EVENT_ST3;
 
 	return 0;

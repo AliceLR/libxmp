@@ -1,5 +1,5 @@
 /* Extended Module Player
- * Copyright (C) 1996-2023 Claudio Matsuoka and Hipolito Carraro Jr
+ * Copyright (C) 1996-2024 Claudio Matsuoka and Hipolito Carraro Jr
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -943,9 +943,13 @@ skip_test:
 	break;
     case TRACKER_OCTALYSER:
 	tracker = "Octalyser";
+	if (detected) {
+		m->loop_mode = LOOP_MODE_OCTALYSER;
+	}
 	break;
     case TRACKER_DIGITALTRACKER:
 	tracker = "Digital Tracker";
+	m->loop_mode = LOOP_MODE_DTM_203;
 	break;
     case TRACKER_FLEXTRAX:
 	tracker = "Flextrax";

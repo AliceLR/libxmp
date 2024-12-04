@@ -504,6 +504,9 @@ static int get_patt(struct module_data *m, int size, HIO_HANDLE *f, void *parm)
 
 	if (data->vers_flag && data->version) {
 		data->version_derived = data->version << 8;
+		m->loop_mode = LOOP_MODE_DTM_19;
+	} else {
+		m->loop_mode = LOOP_MODE_DTM_203;
 	}
 
 	/* Sanity check */

@@ -40,6 +40,8 @@ struct liq_header {
 	uint16 low;		/* Lowest note (Amiga Period*4) */
 	uint16 high;		/* Uppest note (Amiga Period*4) */
 	uint16 chn;		/* Number of channels */
+/*#define LIQ_FLAG_CUT_ON_LIMIT		0x01 */
+#define LIQ_FLAG_SCREAM_TRACKER_COMPAT	0x02
 	uint32 flags;		/* Module flags */
 	uint16 pat;		/* Number of patterns saved */
 	uint16 ins;		/* Number of instruments */
@@ -650,6 +652,8 @@ next_pattern:
     }
 
     m->quirk |= QUIRKS_ST3;
+    m->loop_mode = (lh.flags & LIQ_FLAG_SCREAM_TRACKER_COMPAT) ?
+		   LOOP_MODE_LIQUID_COMPAT : LOOP_MODE_LIQUID;
     m->read_event_type = READ_EVENT_ST3;
 
     return 0;
