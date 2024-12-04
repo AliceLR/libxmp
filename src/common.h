@@ -309,6 +309,73 @@ int libxmp_snprintf (char *, size_t, const char *, ...) LIBXMP_ATTRIB_PRINTF(3,4
 				 QUIRK_VIRTUAL | QUIRK_FILTER | QUIRK_RSTCHN | \
 				 QUIRK_IGSTPOR | QUIRK_S3MRTG | QUIRK_MARKER )
 
+/* Quirks specific to the implementation of the Pattern Loop effect. */
+#define LOOP_MODE_GLOBAL_TARGET	(1 <<  0) /* Global target for all tracks */
+#define LOOP_MODE_GLOBAL_COUNT	(1 <<  1) /* Global count for all tracks */
+#define LOOP_MODE_END_ADVANCES	(1 <<  2) /* Loop end advances target (S3M) */
+#define LOOP_MODE_END_CANCELS	(1 <<  3) /* Loop end cancels prev jumps on row (LIQ) */
+#define LOOP_MODE_PATTERN_RESET	(1 <<  4) /* Target/count reset on pattern change */
+#define LOOP_MODE_INIT_SAMEROW	(1 <<  5) /* SBx sets target if it isn't set (ST 3.01) */
+#define LOOP_MODE_FIRST_EFFECT	(1 <<  6) /* Only execute the first E60/E6x in a row */
+#define LOOP_MODE_ONE_AT_A_TIME	(1 <<  7) /* Init E6x if no other channel is looping (MPT) */
+/*#define LOOP_MODE_TICK_0_JUMP */	  /* Loop jump shortens row to one tick (DTM) */
+
+#define HAS_LOOP_MODE(x)	(m->loop_mode & (x))
+
+#define LOOP_MODE_GENERIC	0
+#define LOOP_MODE_GLOBAL	(LOOP_MODE_GLOBAL_TARGET | LOOP_MODE_GLOBAL_COUNT)
+
+/* Scream Tracker 3. No S3Ms seem to rely on the earlier behavior mode.
+ * 3.01b has a bug where the end advancement sets the target to the same line
+ * instead of the next line; there's no way to make use of this without getting
+ * stuck, so it's not simulated.
+ */
+#define LOOP_MODE_ST3_301	(LOOP_MODE_ST3_321 | LOOP_MODE_INIT_SAMEROW)
+#define LOOP_MODE_ST3_321	(LOOP_MODE_GLOBAL | LOOP_MODE_PATTERN_RESET | \
+				 LOOP_MODE_END_ADVANCES)
+
+/* Impulse Tracker. Not clear if anything relies on either old behavior type.
+ */
+#define LOOP_MODE_IT_100	(LOOP_MODE_GLOBAL)
+#define LOOP_MODE_IT_104	(LOOP_MODE_GENERIC)
+#define LOOP_MODE_IT_210	(LOOP_MODE_END_ADVANCES)
+
+/* Modplug Tracker/OpenMPT */
+#define LOOP_MODE_MPT_116	(LOOP_MODE_ONE_AT_A_TIME)
+
+/* Imago Orpheus. Pattern Jump actually does not reset target/count, but all
+ * other forms of pattern change do. Unclear if anything relies on it.
+ */
+#define LOOP_MODE_ORPHEUS	(LOOP_MODE_PATTERN_RESET)
+
+/* Liquid Tracker 0.64+ uses generic MOD loops with an added behavior where
+ * the end of a loop will cancel any other jump in the row that preceded it.
+ * There is also a "Scream Tracker" compatibility mode (only detectable in the
+ * newer format) that adds LOOP_MODE_PATTERN_RESET and nothing else.
+ */
+#define LOOP_MODE_LIQUID	(LOOP_MODE_END_CANCELS)
+#define LOOP_MODE_LIQUID_COMPAT	(LOOP_MODE_END_CANCELS | LOOP_MODE_PATTERN_RESET)
+
+/* Octalyser (Atari). Looping jumps to the original position E60 was used in,
+ * which libxmp doesn't simulate for now since it mostly gets the player stuck.
+ * LOOP_MODE_END_CANCELS is inaccurate but needed to fix "Dammed Illusion",
+ * which has multiple E6x on one line that don't trigger because the module
+ * expects to play in 4 channel mode. This quirk only works for this module
+ * because it uses even loop counts, and doesn't break any other modules
+ * because multiple E6x on a row otherwise traps the player.
+ */
+#define LOOP_MODE_OCTALYSER	(LOOP_MODE_GLOBAL | LOOP_MODE_END_CANCELS)
+
+/* Digital Tracker prior to shareware 1.02 doesn't use LOOP_MODE_FIRST_EFFECT,
+ * but any MOD that would rely on it is impossible to fingerprint.
+ * Commercial version 1.9(?) added per-track counters.
+ * Digital Home Studio added a bizarre tick-0 jump bug.
+ */
+#define LOOP_MODE_DTM_203	(LOOP_MODE_GLOBAL | LOOP_MODE_FIRST_EFFECT)
+#define LOOP_MODE_DTM_19	(LOOP_MODE_GLOBAL_TARGET)
+#define LOOP_MODE_DTM_DHS	(LOOP_MODE_GLOBAL_TARGET | LOOP_MODE_TICK_0_JUMP)
+
+
 /* DSP effects */
 #define DSP_EFFECT_CUTOFF	0x02
 #define DSP_EFFECT_RESONANCE	0x03
@@ -395,6 +462,7 @@ struct module_data {
 	int mvol;			/* Mix volume (S3M/IT) */
 	const int *vol_table;		/* Volume translation table */
 	int quirk;			/* player quirks */
+	int loop_mode;			/* Pattern Loop effect quirks */
 #define READ_EVENT_MOD	0
 #define READ_EVENT_FT2	1
 #define READ_EVENT_ST3	2
@@ -429,7 +497,11 @@ struct flow_control {
 	int jump;
 	int delay;
 	int jumpline;
-	int loop_chn;
+	int loop_dest;		/* Pattern loop destination, -1 for none */
+	int loop_param;		/* Last loop param for Digital Tracker */
+	int loop_start;		/* Global loop target for S3M et al. */
+	int loop_count;		/* Global loop count for S3M et al. */
+	int loop_active_num;	/* Number of active loops for scan */
 #ifndef LIBXMP_CORE_PLAYER
 	int jump_in_pat;
 #endif
