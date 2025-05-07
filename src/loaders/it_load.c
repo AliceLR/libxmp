@@ -1007,9 +1007,8 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 	struct xmp_event *event, dummy, lastevent[L_CHANNELS];
 	uint8 mask[L_CHANNELS];
 	uint8 last_fxp[64];
-	uint8 *pos;
 
-	int r, c, pat_len, num_rows;
+	int r, c, j, pat_len, num_rows;
 	uint8 b;
 
 	r = 0;
@@ -1033,10 +1032,10 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 		D_(D_CRIT "read error loading pattern %d", i);
 		return -1;
 	}
-	pos = patbuf;
 
-	while (r < num_rows && --pat_len >= 0) {
-		b = *(pos++);
+	j = 0;
+	while (r < num_rows && j < pat_len) {
+		b = patbuf[j++];
 		if (!b) {
 			r++;
 			continue;
@@ -1044,9 +1043,8 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 		c = (b - 1) & 63;
 
 		if (b & 0x80) {
-			if (pat_len < 1) break;
-			mask[c] = *(pos++);
-			pat_len--;
+			if (j >= pat_len) break;
+			mask[c] = patbuf[j++];
 		}
 		/*
 		 * WARNING: we IGNORE events in disabled channels. Disabled
@@ -1060,9 +1058,12 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 			event = &EVENT(i, c, r);
 		}
 
+		if ((mask[c] & 0x0f) == 0) {
+			goto skip_packed_event;
+		}
 		if (mask[c] & 0x01) {
-			if (pat_len < 1) break;
-			b = *(pos++);
+			if (j >= pat_len) break;
+			b = patbuf[j++];
 
 			/* From ittech.txt:
 			 * Note ranges from 0->119 (C-0 -> B-9)
@@ -1085,37 +1086,38 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 				}
 			}
 			lastevent[c].note = event->note = b;
-			pat_len--;
 		}
 		if (mask[c] & 0x02) {
-			if (pat_len < 1) break;
-			b = *(pos++);
+			if (j >= pat_len) break;
+			b = patbuf[j++];
 			lastevent[c].ins = event->ins = b;
-			pat_len--;
 		}
 		if (mask[c] & 0x04) {
-			if (pat_len < 1) break;
-			b = *(pos++);
+			if (j >= pat_len) break;
+			b = patbuf[j++];
 			lastevent[c].vol = event->vol = b;
 			xlat_volfx(event);
-			pat_len--;
 		}
 		if (mask[c] & 0x08) {
-			if (pat_len < 2) break;
-			b = *(pos++);
+			if (j >= pat_len - 1) break;
+			b = patbuf[j++];
 			if (b >= ARRAY_SIZE(fx)) {
 				D_(D_WARN "invalid effect %#02x", b);
-				pos++;
+				j++;
 
 			} else {
 				event->fxt = b;
-				event->fxp = *(pos++);
+				event->fxp = patbuf[j++];
 
 				xlat_fx(c, event, last_fxp, new_fx);
 				lastevent[c].fxt = event->fxt;
 				lastevent[c].fxp = event->fxp;
 			}
-			pat_len -= 2;
+		}
+
+skip_packed_event:
+		if ((mask[c] & 0xf0) == 0) {
+			continue;
 		}
 		if (mask[c] & 0x10) {
 			event->note = lastevent[c].note;
