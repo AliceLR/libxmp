@@ -1369,6 +1369,7 @@ static int it_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	max_ch = 0;
 	for (i = 0; i < mod->pat; i++) {
 		uint8 mask[L_CHANNELS];
+		uint8 *pos, *endpos;
 		int pat_len, num_rows, row;
 
 		/* If the offset to a pattern is 0, the pattern is empty */
@@ -1397,15 +1398,16 @@ static int it_load(struct module_data *m, HIO_HANDLE *f, const int start)
 			D_(D_CRIT "error scanning pattern %d", i);
 			goto err4;
 		}
+		pos = patbuf;
+		endpos = patbuf + pat_len;
 
 		row = 0;
-		j = 0;
-		while (row < num_rows && j < pat_len) {
+		while (row < num_rows && pos < endpos) {
 			/* Bits 0, 1, 2 add 1 byte each. Bit 3 adds 2 bytes. */
 			static const int bytes_in_packed_event[16] = {
 				0, 1, 1, 2, 1, 2, 2, 3, 2, 3, 3, 4, 3, 4, 4, 5
 			};
-			int b = patbuf[j++];
+			int b = *(pos++);
 			if (b == 0) {
 				row++;
 				continue;
@@ -1417,11 +1419,10 @@ static int it_load(struct module_data *m, HIO_HANDLE *f, const int start)
 				max_ch = c;
 
 			if (b & 0x80) {
-				if (j >= pat_len) break;
-				mask[c] = patbuf[j++];
+				if (pos >= endpos) break;
+				mask[c] = *(pos++);
 			}
-			/* Skip packed event */
-			j += bytes_in_packed_event[mask[c] & 0x0f];
+			pos += bytes_in_packed_event[mask[c] & 0x0f];
 		}
 	}
 
