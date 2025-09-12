@@ -1007,8 +1007,10 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 	struct xmp_event *event, dummy, lastevent[L_CHANNELS];
 	uint8 mask[L_CHANNELS];
 	uint8 last_fxp[64];
+	uint8 *pos;
+	uint8 *end;
 
-	int r, c, j, pat_len, num_rows;
+	int r, c, pat_len, num_rows;
 	uint8 b;
 
 	r = 0;
@@ -1032,10 +1034,11 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 		D_(D_CRIT "read error loading pattern %d", i);
 		return -1;
 	}
+	pos = patbuf;
+	end = patbuf + pat_len;
 
-	j = 0;
-	while (r < num_rows && j < pat_len) {
-		b = patbuf[j++];
+	while (r < num_rows && pos < end) {
+		b = *(pos++);
 		if (!b) {
 			r++;
 			continue;
@@ -1043,8 +1046,8 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 		c = (b - 1) & 63;
 
 		if (b & 0x80) {
-			if (j >= pat_len) break;
-			mask[c] = patbuf[j++];
+			if (pos >= end) break;
+			mask[c] = *(pos++);
 		}
 		/*
 		 * WARNING: we IGNORE events in disabled channels. Disabled
@@ -1062,8 +1065,8 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 			goto skip_packed_event;
 		}
 		if (mask[c] & 0x01) {
-			if (j >= pat_len) break;
-			b = patbuf[j++];
+			if (pos >= end) break;
+			b = *(pos++);
 
 			/* From ittech.txt:
 			 * Note ranges from 0->119 (C-0 -> B-9)
@@ -1088,26 +1091,26 @@ static int load_it_pattern(struct module_data *m, int i, int new_fx,
 			lastevent[c].note = event->note = b;
 		}
 		if (mask[c] & 0x02) {
-			if (j >= pat_len) break;
-			b = patbuf[j++];
+			if (pos >= end) break;
+			b = *(pos++);
 			lastevent[c].ins = event->ins = b;
 		}
 		if (mask[c] & 0x04) {
-			if (j >= pat_len) break;
-			b = patbuf[j++];
+			if (pos >= end) break;
+			b = *(pos++);
 			lastevent[c].vol = event->vol = b;
 			xlat_volfx(event);
 		}
 		if (mask[c] & 0x08) {
-			if (j >= pat_len - 1) break;
-			b = patbuf[j++];
+			if (pos >= end - 1) break;
+			b = *(pos++);
 			if (b >= ARRAY_SIZE(fx)) {
 				D_(D_WARN "invalid effect %#02x", b);
-				j++;
+				pos++;
 
 			} else {
 				event->fxt = b;
-				event->fxp = patbuf[j++];
+				event->fxp = *(pos++);
 
 				xlat_fx(c, event, last_fxp, new_fx);
 				lastevent[c].fxt = event->fxt;
