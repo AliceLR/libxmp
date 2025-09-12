@@ -1146,6 +1146,8 @@ static int it_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	uint32 *pp_smp;		/* Pointers to samples */
 	uint32 *pp_pat;		/* Pointers to patterns */
 	uint8 *patbuf = NULL;
+	uint8 *pos;
+	uint8 *end;
 	int new_fx, sample_mode;
 	int pat_before_smp = 0;
 	int is_mpt_116 = 0;
@@ -1399,15 +1401,16 @@ static int it_load(struct module_data *m, HIO_HANDLE *f, const int start)
 			D_(D_CRIT "error scanning pattern %d", i);
 			goto err4;
 		}
+		pos = patbuf;
+		end = patbuf + pat_len;
 
 		row = 0;
-		j = 0;
-		while (row < num_rows && j < pat_len) {
+		while (row < num_rows && pos < end) {
 			/* Bits 0, 1, 2 add 1 byte each. Bit 3 adds 2 bytes. */
 			static const int bytes_in_packed_event[16] = {
 				0, 1, 1, 2, 1, 2, 2, 3, 2, 3, 3, 4, 3, 4, 4, 5
 			};
-			int b = patbuf[j++];
+			int b = *(pos++);
 			if (b == 0) {
 				row++;
 				continue;
@@ -1419,13 +1422,13 @@ static int it_load(struct module_data *m, HIO_HANDLE *f, const int start)
 				max_ch = c;
 
 			if (b & 0x80) {
-				if (j >= pat_len) break;
+				if (pos >= end) break;
 				/* The high nibble is not required to
 				 * calculate the event size. */
-				mask[c] = patbuf[j++] & 0x0f;
+				mask[c] = *(pos++) & 0x0f;
 			}
 			/* Skip packed event */
-			j += bytes_in_packed_event[mask[c]];
+			pos += bytes_in_packed_event[mask[c]];
 		}
 	}
 
