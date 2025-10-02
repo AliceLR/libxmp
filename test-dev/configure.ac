@@ -28,6 +28,8 @@ AC_DEFUN([AC_CHECK_DEFINED],[
 
 AC_CHECK_DEFINED(__cplusplus)
 
+AC_CHECK_SIZEOF(size_t)
+
 XMP_TRY_COMPILE(whether compiler understands -Wall,
   ac_cv_c_flag_w_all,
   -Wall,[

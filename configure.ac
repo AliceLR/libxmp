@@ -110,6 +110,8 @@ if test "${enable_shared}" != no; then
   AC_SUBST(CFLAGS_SHARED)
 fi
 
+AC_CHECK_SIZEOF(size_t)
+
 XMP_TRY_COMPILE(whether compiler understands -Wall,
   ac_cv_c_flag_w_all,
   -Wall,[

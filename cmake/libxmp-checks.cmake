@@ -38,6 +38,7 @@ include(CheckIncludeFile)
 include(CMakePushCheckState)
 include(CheckCSourceCompiles)
 include(CheckCCompilerFlag)
+include(CheckTypeSize)
 include(TestBigEndian)
 
 # If platform is Emscripten
@@ -133,6 +134,10 @@ if(APPLE AND CMAKE_OSX_ARCHITECTURES)
     endif()
 endif()
 
+# TODO: may be zero for macOS multiarch.
+check_type_size(size_t SIZEOF_SIZE_T)
+list(APPEND LIBXMP_DEFINES -DSIZEOF_SIZE_T=${SIZEOF_SIZE_T})
+list(APPEND LIBXMPLITE_DEFINES -DSIZEOF_SIZE_T=${SIZEOF_SIZE_T})
 
 cmake_push_check_state()
 if(LIBM_REQUIRED)

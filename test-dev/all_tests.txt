@@ -41,6 +41,13 @@ test_depack_arc_subdir_spark
 test_depack_spark
 test_depack_arcfs
 test_depack_arcfs_subdir
+test_depack_ice_113
+test_depack_ice_211_filter
+test_depack_ice_212
+test_depack_ice_220
+test_depack_ice_220_filter
+test_depack_ice_231
+test_depack_ice_231_filter
 test_depack_gzip
 test_depack_compress
 test_depack_rar

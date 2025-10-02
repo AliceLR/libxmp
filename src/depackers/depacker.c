@@ -68,6 +68,8 @@ static const struct depacker *const depacker_list[] = {
 	&libxmp_depacker_arc,
 	&libxmp_depacker_arcfs,
 	&libxmp_depacker_mmcmp,
+	&libxmp_depacker_ice1,
+	&libxmp_depacker_ice2,
 	&libxmp_depacker_lzx,
 	&libxmp_depacker_s404,
 	NULL
