@@ -8,8 +8,8 @@ Stable versions
 	- Fix XM volume effects cxx/dxx accidentally having effects memory.
 	- Correct default of sample default panning values to -1 (no default
 	  panning) for most module formats.
-	- Simplify read_event_mod, read_event_st3 sample default volume
-	  handling.
+	- Simplify read_event_mod, read_event_st3, read_event_ft2 sample
+	  default volume handling.
 	- Anticlick decay curves are now applied after IT note cut, DCA note
 	  cut, IT effect S70 (etc.), and API-requested position changes.
 	Changes by Alice Rowan and ds-sloth:

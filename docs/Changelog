@@ -28,8 +28,8 @@ Stable versions
 	  most notes to play at slightly wrong volumes.
 	- Fix Galaxy Music System 4.0 sample default panning.
 	- Fix Imago Orpheus IMF note 255 (no note, not key off).
-	- Simplify read_event_mod, read_event_st3, read_event_med sample
-	  default volume handling.
+	- Simplify read_event_mod, read_event_st3, read_event_ft2,
+	  read_event_med sample default volume handling.
 	- MED "hold symbols" now apply the referenced instrument's default
 	  volume for modules from OctaMED 3.00+ and don't apply any default
 	  volume for modules from prior versions.

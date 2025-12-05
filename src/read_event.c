@@ -449,7 +449,6 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 	struct xmp_subinstrument *sub;
 	int new_invalid_ins;
 	int is_toneporta;
-	int use_ins_vol;
 	int k00 = 0;
 	struct xmp_event ev;
 
@@ -479,7 +478,6 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 	ins = ev.ins;
 	new_invalid_ins = 0;
 	is_toneporta = 0;
-	use_ins_vol = 0;
 
 	/* From the OpenMPT key_off.xm test case:
 	 * "Key off at tick 0 (K00) is very dodgy command. If there is a note
@@ -504,6 +502,9 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 		is_toneporta = 1;
 	}
 
+	/* Retain previous subinstrument for default volume. */
+	sub = get_subinstrument(ctx, xc->ins, xc->key);
+
 	/* Check instrument */
 
 	/* Ignore invalid instruments. The last instrument, invalid or
@@ -514,34 +515,13 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 		ins = 0;
 	}
 
-	/* FT2: Retrieve old instrument volume */
-	if (ins) {
-		if (key == 0 || key >= XMP_KEY_OFF) {
-			/* Previous instrument */
-			sub = get_subinstrument(ctx, xc->ins, xc->key);
-
-			/* No note */
-			if (sub != NULL) {
-				xc->volume = sub->vol;
-
-				if (sub->pan >= 0) {
-					xc->pan.val = sub->pan;
-				}
-
-				xc->ins_fade = mod->xxi[xc->ins].rls;
-				SET(NEW_VOL);
-			}
-		}
-	}
-
 	/* Do this regardless if the instrument is invalid or not -- unless
 	 * XM keyoff is used. Fixes xyce-dans_la_rue.xm chn 0 patterns 0E/0F and
 	 * chn 10 patterns 0D/0E, see https://github.com/libxmp/libxmp/issues/152
 	 * for details.
-         */
+	 */
 	if (ev.ins && key != XMP_KEY_FADE) {
 		SET(NEW_INS);
-		use_ins_vol = 1;
 		xc->per_flags = 0;
 
 		RESET_NOTE(NOTE_RELEASE|NOTE_SUSEXIT);
@@ -570,32 +550,32 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 
 		xc->tremor.count = 0x20;
 	}
+	if (ev.ins) {
+		/* Only use the new (sub)instrument for volume, pan, and fade
+		 * if there's a valid note + valid instrument + no toneporta.
+		 * Otherwise, keep the old fade and reuse the old subinstrument.
+		 */
+		if (ins && !is_toneporta && IS_VALID_NOTE(key - 1)) {
+			xc->ins_fade = mod->xxi[xc->ins].rls;
 
-	/* Check note */
-	if (ins) {
-		if (key > 0 && key < XMP_KEY_OFF) {
-			/* Retrieve volume when we have note */
-
-			/* and only if we have instrument, otherwise we're in
-			 * case 1: new note and no instrument
-			 */
-
-			/* Current instrument */
 			sub = get_subinstrument(ctx, xc->ins, key - 1);
-			if (sub != NULL) {
-				xc->volume = sub->vol;
-
-				if (sub->pan >= 0) {
-					xc->pan.val = sub->pan;
-				}
-
-				xc->ins_fade = mod->xxi[xc->ins].rls;
-			} else {
+			/* TODO: ????? what relies on this, if anything? */
+			if (sub == NULL) {
 				xc->volume = 0;
+				SET(NEW_VOL);
 			}
+		}
+		if (sub != NULL) {
+			xc->volume = sub->vol;
 			SET(NEW_VOL);
+
+			if (sub->pan >= 0) {
+				xc->pan.val = sub->pan;
+			}
 		}
 	}
+
+	/* Check note */
 
 	if (key) {
 		SET(NEW_NOTE);
@@ -632,7 +612,6 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 				} else {
 					SET_NOTE(NOTE_RELEASE);
 				}
-				use_ins_vol = 0;
 			} else {
 				SET_NOTE(NOTE_FADEOUT);
 			}
@@ -659,7 +638,11 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 			 */
 		}
 
-		if (ev.ins == 0 && !IS_VALID_INSTRUMENT(xc->old_ins - 1)) {
+		/* TODO: this previously cut no-ins + key-off when the
+		 * previous instrument was invalid, breaking fade out in
+		 * some edge cases. Document what this is trying to do. */
+		if (ev.ins == 0 && IS_VALID_NOTE(key - 1) &&
+		    !IS_VALID_INSTRUMENT(xc->old_ins - 1)) {
 			new_invalid_ins = 1;
 		}
 
@@ -719,7 +702,6 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 			}
 		} else {
 			xc->flags = 0;
-			use_ins_vol = 0;
 		}
 	}
 
@@ -779,10 +761,6 @@ static int read_event_ft2(struct context_data *ctx, struct xmp_event *e, int chn
 			 */
 			libxmp_virt_voicepos(ctx, chn, xc->offset.val);
 		}
-	}
-
-	if (use_ins_vol && !TEST(NEW_VOL)) {
-		xc->volume = sub->vol;
 	}
 
 	return 0;
